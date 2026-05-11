@@ -293,10 +293,10 @@
         .ham-item.danger:hover { background: #fff5f5; }
         .ham-item.danger:hover svg { opacity: 1; }
 
-        /* ── Logout loading overlay ── */
+        /* logout overlay */
         .logout-overlay {
             display: none; position: fixed; inset: 0;
-            background: rgba(255,255,255,0.85);
+            background: rgba(255,255,255,0.88);
             backdrop-filter: blur(4px);
             z-index: 9999;
             flex-direction: column;
@@ -313,7 +313,7 @@
         .logout-overlay p { font-size: 13px; font-weight: 600; color: #6b7280; letter-spacing: 0.5px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ── Modals ── */
+        /* modals */
         .modal-overlay {
             display: none; position: fixed; inset: 0;
             background: rgba(0,0,0,0.35);
@@ -321,17 +321,17 @@
             z-index: 9998;
             align-items: center; justify-content: center; padding: 24px;
         }
-        .modal-overlay.active { display: flex; animation: fadeIn .18s ease; }
-        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        .modal-overlay.active { display: flex; animation: mFadeIn .18s ease; }
+        @keyframes mFadeIn { from { opacity:0; } to { opacity:1; } }
         .modal-card {
             background: #fff; border-radius: 20px;
             padding: 32px 28px 24px;
             width: 100%; max-width: 320px;
             box-shadow: 0 20px 60px rgba(0,0,0,.18);
             position: relative;
-            animation: slideUp .22s cubic-bezier(.34,1.56,.64,1);
+            animation: mSlideUp .22s cubic-bezier(.34,1.56,.64,1);
         }
-        @keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+        @keyframes mSlideUp { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
         .modal-close {
             position: absolute; top: 14px; right: 14px;
             background: #f3f4f6; border: none; border-radius: 8px;
@@ -451,4 +451,5 @@
     <div class="desk-main">
         <div class="desk-chat" id="deskChat"></div>
         <div class="desk-input-bar">
-            <form method="POST" id="deskForm" style="display:flex;flex:1;gap:10px;align-items:cent
+            <form method="POST" id="deskForm" style="display:flex;flex:1;gap:10px;align-items:center;">
+          
