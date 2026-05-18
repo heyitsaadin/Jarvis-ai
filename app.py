@@ -1129,6 +1129,42 @@ Rules: Array only. No markdown. Do NOT repeat: {prev}"""
     }), 200, {"Content-Type": "application/json"}
 
 
+import google.generativeai as genai
+import PIL.Image
+import io
+
+@app.route("/send_image", methods=["POST"])
+def send_image():
+    if "user" not in session:
+        return _json.dumps({"error": "not_logged_in"}), 401, {"Content-Type": "application/json"}
+    heartbeat(session["user"])
+
+    image_file = request.files.get("image")
+    caption = request.form.get("caption", "").strip()
+
+    if not image_file:
+        return _json.dumps({"error": "No image provided"}), 400, {"Content-Type": "application/json"}
+
+    try:
+        genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        img_bytes = image_file.read()
+        img = PIL.Image.open(io.BytesIO(img_bytes))
+
+        prompt = caption if caption else "Describe this image in detail."
+        response = model.generate_content([prompt, img])
+
+        reply = response.text.strip()
+        save_chat(session["user"], "user", f"[Image uploaded] {caption}")
+        save_chat(session["user"], "Jarvis", reply)
+
+        return _json.dumps({"reply": reply}), 200, {"Content-Type": "application/json"}
+
+    except Exception as e:
+        return _json.dumps({"error": str(e)}), 500, {"Content-Type": "application/json"}
+
+
 init_db()
 
 if __name__ == "__main__":
