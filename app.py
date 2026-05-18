@@ -1133,41 +1133,39 @@ import google.generativeai as genai
 import PIL.Image
 import io
 
+from flask import Flask, render_template, request, redirect, session, jsonify
+
+# Then change all returns in send_image to:
 @app.route("/send_image", methods=["POST"])
 def send_image():
     if "user" not in session:
-        return _json.dumps({"error": "not_logged_in"}), 401, {"Content-Type": "application/json"}
+        return jsonify({"error": "not_logged_in"}), 401
     heartbeat(session["user"])
 
     image_file = request.files.get("image")
     caption = request.form.get("caption", "").strip()
 
     if not image_file:
-        return _json.dumps({"error": "No image provided"}), 400, {"Content-Type": "application/json"}
+        return jsonify({"error": "No image provided"}), 400
 
     try:
         genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
         model = genai.GenerativeModel("gemini-2.0-flash-lite")
-
         img_bytes = image_file.read()
-        img = PIL.Image.open(io.BytesIO(img_bytes))
-        img = img.convert("RGB")  # ensure compatibility
-
+        img = PIL.Image.open(io.BytesIO(img_bytes)).convert("RGB")
         prompt = caption if caption else "Describe this image in detail."
         response = model.generate_content(
-    contents=[prompt, img],
-    generation_config={"max_output_tokens": 300}
+            contents=[prompt, img],
+            generation_config={"max_output_tokens": 300}
         )
-
         reply = response.text.strip()
         save_chat(session["user"], "user", f"[Image uploaded] {caption}")
         save_chat(session["user"], "Jarvis", reply)
-
-        return _json.dumps({"reply": reply}), 200, {"Content-Type": "application/json"}
+        return jsonify({"reply": reply})
 
     except Exception as e:
-        # Return the actual error so we can see it
-        return _json.dumps({"error": str(e), "reply": f"Error: {str(e)}"}), 200, {"Content-Type": "application/json"}
+        return jsonify({"reply": f"Gemini error: {str(e)}"})
+
 
 init_db()
 
