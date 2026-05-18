@@ -1151,9 +1151,13 @@ def send_image():
 
         img_bytes = image_file.read()
         img = PIL.Image.open(io.BytesIO(img_bytes))
+        img = img.convert("RGB")  # ensure compatibility
 
         prompt = caption if caption else "Describe this image in detail."
-        response = model.generate_content([prompt, img])
+        response = model.generate_content(
+            contents=[prompt, img],
+            generation_config={"max_output_tokens": 1024}
+        )
 
         reply = response.text.strip()
         save_chat(session["user"], "user", f"[Image uploaded] {caption}")
@@ -1162,8 +1166,8 @@ def send_image():
         return _json.dumps({"reply": reply}), 200, {"Content-Type": "application/json"}
 
     except Exception as e:
-        return _json.dumps({"error": str(e)}), 500, {"Content-Type": "application/json"}
-
+        # Return the actual error so we can see it
+        return _json.dumps({"error": str(e), "reply": f"Error: {str(e)}"}), 200, {"Content-Type": "application/json"}
 
 init_db()
 
