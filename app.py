@@ -1149,22 +1149,37 @@ def send_image():
         return jsonify({"error": "No image provided"}), 400
 
     try:
-        genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
-        model = genai.GenerativeModel("gemini-2.0-flash-lite")
+        import base64
         img_bytes = image_file.read()
-        img = PIL.Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        b64 = base64.b64encode(img_bytes).decode("utf-8")
+        mime = image_file.content_type or "image/jpeg"
+
         prompt = caption if caption else "Describe this image in detail."
-        response = model.generate_content(
-            contents=[prompt, img],
-            generation_config={"max_output_tokens": 300}
+        key = os.environ.get("GROQ_API_KEY2", "")
+
+        res = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
+                    ]
+                }],
+                "max_tokens": 500
+            },
+            timeout=30
         )
-        reply = response.text.strip()
+        reply = res.json()["choices"][0]["message"]["content"].strip()
         save_chat(session["user"], "user", f"[Image uploaded] {caption}")
         save_chat(session["user"], "Jarvis", reply)
         return jsonify({"reply": reply})
 
     except Exception as e:
-        return jsonify({"reply": f"Gemini error: {str(e)}"})
+        return jsonify({"reply": f"Error: {str(e)}"})
 
 
 init_db()
