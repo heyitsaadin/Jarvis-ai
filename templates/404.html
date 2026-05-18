@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found | Jarvis AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --tan: #f5e3b0;
+            --dark: #1f2937;
+            --bg: #f3f4f6;
+            --accent: #f5e3b0;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: radial-gradient(circle at top left, #f5e3b0 0%, #e5e7eb 40%, #d1d5db 100%);
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        /* Floating particles */
+        .particles {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(245, 227, 176, 0.4);
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            max-width: 480px;
+            width: 100%;
+            animation: fadeUp 0.8s cubic-bezier(.22,1,.36,1) both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Big 404 */
+        .error-code {
+            font-size: clamp(100px, 28vw, 180px);
+            font-weight: 900;
+            color: #1f2937;
+            line-height: 1;
+            letter-spacing: -4px;
+            position: relative;
+            animation: popIn 0.6s cubic-bezier(.22,1,.36,1) 0.2s both;
+            text-shadow: 4px 4px 0px rgba(245,227,176,0.8), 8px 8px 0px rgba(0,0,0,0.05);
+        }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Robot illustration */
+        .illustration {
+            margin: -20px auto 0;
+            width: clamp(180px, 50vw, 260px);
+            animation: bobble 3s ease-in-out infinite, fadeUp 0.8s cubic-bezier(.22,1,.36,1) 0.3s both;
+        }
+
+        @keyframes bobble {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+        }
+
+        .illustration svg {
+            width: 100%;
+            height: auto;
+            filter: drop-shadow(0 20px 30px rgba(0,0,0,0.15));
+        }
+
+        /* Text */
+        .title {
+            font-size: clamp(22px, 6vw, 30px);
+            font-weight: 900;
+            color: #1f2937;
+            margin: 16px 0 8px;
+            animation: fadeUp 0.8s cubic-bezier(.22,1,.36,1) 0.4s both;
+        }
+
+        .subtitle {
+            font-size: clamp(13px, 3.5vw, 16px);
+            color: #6b7280;
+            margin-bottom: 32px;
+            animation: fadeUp 0.8s cubic-bezier(.22,1,.36,1) 0.5s both;
+        }
+
+        /* Button */
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+            color: #f5e3b0;
+            font-family: 'Nunito', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            padding: 14px 36px;
+            border-radius: 50px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px rgba(31,41,55,0.3);
+            animation: fadeUp 0.8s cubic-bezier(.22,1,.36,1) 0.6s both;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px) scale(1.04);
+            box-shadow: 0 8px 30px rgba(31,41,55,0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        /* Signal lines decoration */
+        .signal {
+            position: fixed;
+            border-radius: 50%;
+            border: 2px solid rgba(245,227,176,0.3);
+            animation: pulse 3s ease-out infinite;
+            pointer-events: none;
+        }
+
+        .signal:nth-child(1) { width: 200px; height: 200px; top: -100px; right: -100px; animation-delay: 0s; }
+        .signal:nth-child(2) { width: 350px; height: 350px; top: -175px; right: -175px; animation-delay: 0.5s; }
+        .signal:nth-child(3) { width: 500px; height: 500px; top: -250px; right: -250px; animation-delay: 1s; }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; transform: scale(0.95); }
+            50% { opacity: 0.2; transform: scale(1.05); }
+            100% { opacity: 0.6; transform: scale(0.95); }
+        }
+
+        /* Jarvis branding */
+        .brand {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: fadeUp 0.6s cubic-bezier(.22,1,.36,1) both;
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            background: #1f2937;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-logo svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .brand-name {
+            font-size: 18px;
+            font-weight: 900;
+            color: #1f2937;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Decorative rings -->
+    <div class="signal"></div>
+    <div class="signal"></div>
+    <div class="signal"></div>
+
+    <!-- Particles -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Jarvis brand -->
+    <div class="brand">
+        <div class="brand-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#f5e3b0" stroke-width="2.5" stroke-linecap="round">
+                <rect x="3" y="3" width="18" height="18" rx="4"/>
+                <path d="M8 12h8M12 8v8"/>
+            </svg>
+        </div>
+        <span class="brand-name">JARVIS</span>
+    </div>
+
+    <div class="container">
+        <div class="error-code">404</div>
+
+        <!-- Robot lost illustration -->
+        <div class="illustration">
+            <svg viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+                <!-- Shadow -->
+                <ellipse cx="100" cy="210" rx="55" ry="8" fill="rgba(0,0,0,0.1)"/>
+
+                <!-- Body -->
+                <rect x="55" y="110" width="90" height="75" rx="18" fill="#1f2937"/>
+                <rect x="65" y="120" width="70" height="50" rx="10" fill="#374151"/>
+
+                <!-- Screen on body -->
+                <rect x="72" y="127" width="56" height="36" rx="6" fill="#f5e3b0" opacity="0.15"/>
+                <!-- X marks on screen -->
+                <line x1="82" y1="137" x2="90" y2="145" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="90" y1="137" x2="82" y2="145" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+                <text x="100" y="148" font-family="Nunito" font-size="9" fill="#f5e3b0" text-anchor="middle" opacity="0.7">ERROR</text>
+
+                <!-- Neck -->
+                <rect x="88" y="95" width="24" height="18" rx="6" fill="#374151"/>
+
+                <!-- Head -->
+                <rect x="50" y="45" width="100" height="55" rx="20" fill="#1f2937"/>
+
+                <!-- Eyes -->
+                <rect x="68" y="60" width="22" height="16" rx="8" fill="#f5e3b0"/>
+                <rect x="110" y="60" width="22" height="16" rx="8" fill="#f5e3b0"/>
+                <!-- Pupils - looking confused -->
+                <circle cx="79" cy="68" r="5" fill="#1f2937"/>
+                <circle cx="121" cy="68" r="5" fill="#1f2937"/>
+                <circle cx="81" cy="66" r="2" fill="white"/>
+                <circle cx="123" cy="66" r="2" fill="white"/>
+
+                <!-- Mouth - sad/confused -->
+                <path d="M 82 85 Q 100 78 118 85" stroke="#f5e3b0" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+                <!-- Antenna -->
+                <line x1="100" y1="45" x2="100" y2="25" stroke="#374151" stroke-width="3" stroke-linecap="round"/>
+                <circle cx="100" cy="20" r="7" fill="#f5e3b0"/>
+                <circle cx="100" cy="20" r="4" fill="#fbbf24">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+                </circle>
+
+                <!-- Arms -->
+                <rect x="22" y="115" width="35" height="14" rx="7" fill="#1f2937" transform="rotate(-20 22 115)"/>
+                <rect x="143" y="108" width="35" height="14" rx="7" fill="#1f2937" transform="rotate(20 143 108)"/>
+
+                <!-- Hands -->
+                <circle cx="20" cy="140" r="10" fill="#374151"/>
+                <circle cx="180" cy="133" r="10" fill="#374151"/>
+
+                <!-- Legs -->
+                <rect x="68" y="183" width="22" height="22" rx="8" fill="#1f2937"/>
+                <rect x="110" y="183" width="22" height="22" rx="8" fill="#1f2937"/>
+
+                <!-- Question marks floating -->
+                <text x="28" y="80" font-family="Nunito" font-size="22" font-weight="900" fill="#f5e3b0" opacity="0.5">?</text>
+                <text x="158" y="70" font-family="Nunito" font-size="18" font-weight="900" fill="#f5e3b0" opacity="0.4">?</text>
+            </svg>
+        </div>
+
+        <h1 class="title">Look like you're lost!</h1>
+        <p class="subtitle">The page you are looking for is not available.</p>
+        <a href="/" class="btn">🏠 Go to Home</a>
+    </div>
+
+    <script>
+        // Generate particles
+        const container = document.getElementById('particles');
+        for (let i = 0; i < 15; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            const size = Math.random() * 20 + 5;
+            p.style.cssText = `
+                width: ${size}px;
+                height: ${size}px;
+                left: ${Math.random() * 100}%;
+                animation-duration: ${Math.random() * 10 + 8}s;
+                animation-delay: ${Math.random() * 8}s;
+            `;
+            container.appendChild(p);
+        }
+    </script>
+</body>
+</html>
