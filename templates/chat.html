@@ -1165,6 +1165,7 @@
 </div>
 
 <script>
+{% raw %}
     const messages   = JSON.parse(document.getElementById('msgData').textContent);
     const isNewReply = {{ 'true' if is_new_reply else 'false' }};
     marked.setOptions({ breaks:true, gfm:true });
@@ -1882,6 +1883,7 @@
         };
     })();
 
+{% endraw %}
 </script>
 </body>
 </html>
