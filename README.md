@@ -1,17 +1,23 @@
 # Note 
 
-This project is discontinued, Since having no Premium Features On several Platforms puts me in a difficult situation to 
-to make up a decision And I personally Can't spend Money for this project so ive decided to dis-continue This project.
+This project is discontinued, Since having no Premium Features On several Platforms puts me in a difficult situation to  make up a decision And I personally Can't spend Money for this project so i have decided to discontinue This project.
 
 
 The Website Wouldn't taken Down it will  be still Hosted through Vercel but There won't Be new updates or fixes for this project.
 
-i know this is a hard descion, but here me out no one really cared or showed any interest or support forabout this project and i personally enjoyed working on this project for a while but having no one to support or raise money really put me on this situation Im glad i made this Ai "JARVIS" and im proud of my work but i am ending this journey in here 
+i know this is a hard descion, but here me out no one really cared or showed any interest or support for this project and i personally enjoyed working on this project for a while but having no one to support or raise money really put me on this situation Im glad i made this Ai "JARVIS" and im proud of my work but i am ending this journey in here 
 
 
-ik no one is going to even read about this but yeh, these are my last words about this project 
+i know no one is going to even read or even be seen about this but yeh, these are my last words about this project 
 
-~singing off -Aadin 
+
+"no matter what other tells you Chase your dreams and be what you wanted to be"
+"Dream Big Fly High, Sky was never the limit"
+remember this, "it's better to be late than never 💪"
+
+Aadin Was Here...
+
+
 
 # Jarvis AI
 
