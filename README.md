@@ -12,8 +12,16 @@ i know no one is going to even read or even be seen about this but yeh, these ar
 
 
 "no matter what other tells you Chase your dreams and be what you wanted to be"
+
+
 "Dream Big Fly High, Sky was never the limit"
-remember this, "it's better to be late than never 💪"
+
+
+remember this, "it's better to be late than never "
+
+
+.gitignore (also i always loved you heitha eventhough i ignored you...)  this is just bs ignore this line...
+
 
 Aadin Was Here...
 
