@@ -40,13 +40,11 @@
       animation: blobReveal 1.2s ease forwards, blobDrift var(--dur) ease-in-out infinite var(--delay);
     }
 
-    /* Reveal on load */
     @keyframes blobReveal {
       from { opacity: 0; }
       to   { opacity: var(--op); }
     }
 
-    /* Continuous drift */
     @keyframes blobDrift {
       0%,100% { transform: translate(0, 0) scale(1); }
       33%      { transform: translate(var(--tx1), var(--ty1)) scale(1.1); }
@@ -202,17 +200,22 @@
       50%      { transform: translateY(-14px) rotate(-1deg); }
     }
 
+    /* ── CONTENT ANCHOR (shared position for skeleton + real content) ── */
+    .content-anchor {
+      position: fixed;
+      top: 50%;
+      right: 5%;
+      transform: translateY(-50%);
+      z-index: 5;
+      width: min(540px, 90vw);
+    }
+
     /* ── SKELETON LOADERS ─────────────────────────── */
     .skeleton-wrap {
-      position: relative;
-      z-index: 5;
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      max-width: 540px;
-      width: 90%;
-      margin-left: auto;
-      margin-right: 5%;
+      width: 100%;
     }
 
     .skeleton {
@@ -237,33 +240,28 @@
       100% { background-position: -200% 0; }
     }
 
-    /* ── REAL CONTENT (hidden until loaded) ────────── */
+    /* ── REAL CONTENT ────────── */
     .stage {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 5;
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      max-width: 540px;
-      width: 90%;
-      margin-left: auto;
-      margin-right: 5%;
-      text-align: left;
+      width: 100%;
+      text-align: right;
       opacity: 0;
       pointer-events: none;
+      display: none;
     }
 
     .stage.visible {
+      display: flex;
       opacity: 1;
       pointer-events: auto;
       animation: contentReveal 0.7s cubic-bezier(.22,1,.36,1) forwards;
     }
 
     @keyframes contentReveal {
-      from { opacity: 0; transform: translate(-50%, calc(-50% + 20px)); }
-      to   { opacity: 1; transform: translate(-50%, -50%); }
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     .title {
@@ -296,6 +294,7 @@
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
+      justify-content: flex-end;
       opacity: 0;
       animation: lineUp 0.6s 0.2s cubic-bezier(.22,1,.36,1) forwards;
     }
@@ -323,7 +322,6 @@
       box-shadow: 0 10px 36px rgba(255,255,255,0.25);
     }
 
-    /* Go Back — more visible now with solid border + light text */
     .btn-secondary {
       display: inline-flex;
       align-items: center;
@@ -366,17 +364,17 @@
 
     /* ── RESPONSIVE ───────────────────────────────── */
     @media (max-width: 600px) {
+      .content-anchor {
+        right: 50%;
+        transform: translate(50%, -50%);
+      }
       .skeleton-wrap, .stage {
         align-items: center;
         text-align: center;
-        margin: 0 auto;
-        left: 50%;
-        transform: translateX(-50%);
       }
-      .stage { transform: translate(-50%, -50%); }
+      .actions { justify-content: center; }
       .subtitle { max-width: 100%; }
       .error-nums { font-size: 22vw; left: -4%; }
-      .actions { justify-content: center; }
       .blanket { width: 80%; height: 55%; }
       .sheet { width: 75%; height: 50%; }
     }
@@ -406,45 +404,45 @@
   <!-- 404 numbers -->
   <div class="error-nums" aria-hidden="true">404</div>
 
-  <!-- Skeleton loader (shown first) -->
-  <div class="skeleton-wrap" id="skeleton">
-    <div class="skeleton sk-title-1"></div>
-    <div class="skeleton sk-title-2"></div>
-    <div class="skeleton sk-sub-1"></div>
-    <div class="skeleton sk-sub-2"></div>
-    <div class="skeleton sk-sub-3"></div>
-    <div class="sk-btn-wrap">
-      <div class="skeleton sk-btn-1"></div>
-      <div class="skeleton sk-btn-2"></div>
+  <!-- Shared anchor: skeleton + content occupy same space -->
+  <div class="content-anchor">
+    <!-- Skeleton loader (shown first) -->
+    <div class="skeleton-wrap" id="skeleton">
+      <div class="skeleton sk-title-1"></div>
+      <div class="skeleton sk-title-2"></div>
+      <div class="skeleton sk-sub-1"></div>
+      <div class="skeleton sk-sub-2"></div>
+      <div class="skeleton sk-sub-3"></div>
+      <div class="sk-btn-wrap">
+        <div class="skeleton sk-btn-1"></div>
+        <div class="skeleton sk-btn-2"></div>
+      </div>
     </div>
+
+    <!-- Real content (revealed after skeleton) -->
+    <main class="stage" id="content">
+      <h1 class="title">Hello? Is<br/>anyone out there?</h1>
+      <p class="subtitle">
+        The page you requested has drifted into the void — it was moved, deleted, or perhaps never existed at all. Let's get you back on track.
+      </p>
+      <div class="actions">
+        <a href="/" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <path d="M3 12L12 3l9 9"/><path d="M9 21V12h6v9"/>
+          </svg>
+          Back to Home
+        </a>
+        <a href="javascript:history.back()" class="btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+          Go Back
+        </a>
+      </div>
+    </main>
   </div>
 
-  <!-- Real content (revealed after skeleton) -->
-  <main class="stage" id="content">
-    <h1 class="title">Hello? Is<br/>anyone out there?</h1>
-
-    <p class="subtitle">
-      The page you requested has drifted into the void — it was moved, deleted, or perhaps never existed at all. Let's get you back on track.
-    </p>
-
-    <div class="actions">
-      <a href="/" class="btn-primary">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <path d="M3 12L12 3l9 9"/><path d="M9 21V12h6v9"/>
-        </svg>
-        Back to Home
-      </a>
-      <a href="javascript:history.back()" class="btn-secondary">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <path d="M19 12H5M12 5l-7 7 7 7"/>
-        </svg>
-        Go Back
-      </a>
-    </div>
-  </main>
-
   <script>
-    // Simulate load — skeleton shows for 1.6s then swaps to real content
     setTimeout(() => {
       const sk = document.getElementById('skeleton');
       const content = document.getElementById('content');
