@@ -2341,6 +2341,16 @@ def google_verify(rest):
     return send_from_directory('.', 'googlea35edb5a70c' + rest)
 
 
+@app.route("/debug_sf")
+def debug_sf():
+    if not session.get("admin"):
+        return "forbidden", 403
+    return jsonify({
+        "key_set": bool(SILICONFLOW_API_KEY),
+        "key_preview": SILICONFLOW_API_KEY[:8] + "..." if SILICONFLOW_API_KEY else "EMPTY"
+    })
+
+
 init_db()
 init_db_pool()
 
