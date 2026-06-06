@@ -408,7 +408,7 @@ def _groq_profile_update(username, last_message):
         res = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
-            json={"model": "llama-3.1-8b-instant", "messages": [{"role": "user", "content": prompt}], "max_tokens": 120, "temperature": 0.4},
+            json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": prompt}], "max_tokens": 120, "temperature": 0.4},
             timeout=15
         )
         raw = res.json()["choices"][0]["message"]["content"].strip()
@@ -860,7 +860,7 @@ YOU MUST ALWAYS RESPOND IN THIS EXACT JSON FORMAT — no markdown, no explanatio
     messages = [{"role": "system", "content": system_msg}]
     messages.extend(clean_msgs)
     messages.append({"role": "user", "content": prompt})
-    data = {"model": "llama-3.1-8b-instant", "messages": messages, "max_tokens": 600}
+    data = {"model": "llama-3.3-70b-versatile", "messages": messages, "max_tokens": 600}
     for attempt in range(2):
         try:
             raw = requests.post(url, headers=headers, json=data, timeout=20).json()
@@ -965,7 +965,7 @@ SECURITY RULES:
     messages = [{"role": "system", "content": final_system}]
     messages.extend(clean_msgs)
     messages.append({"role": "user", "content": prompt})
-    data = {"model": "llama-3.1-8b-instant", "messages": messages, "max_tokens": 512}
+    data = {"model": "llama-3.3-70b-versatile", "messages": messages, "max_tokens": 512}
     for attempt in range(2):
         try:
             res = requests.post(url, headers=headers, json=data, timeout=20).json()
@@ -1129,7 +1129,7 @@ def _groq_generate(system_prompt, user_prompt, max_tokens=2500, temperature=0.5)
     ] if k]
     if not keys:
         raise ValueError("No GROQ_API_KEY configured")
-    MODELS = ["llama-3.1-8b-instant", "llama3-8b-8192", "gemma2-9b-it"]
+    MODELS = ["llama3-8b-8192", "gemma2-9b-it", "llama-3.3-70b-versatile"]
     url = "https://api.groq.com/openai/v1/chat/completions"
     payload = {
         "messages":    [{"role": "system", "content": system_prompt},
@@ -1381,7 +1381,7 @@ def send_image():
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
                 json={
-                    "model": "llama-3.1-8b-instant",
+                    "model": "llama-3.3-70b-versatile",
                     "messages": [
                         {"role": "system", "content": (
                             "You are a classifier. The user has uploaded an image and written a caption. "
