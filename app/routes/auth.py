@@ -4,6 +4,16 @@ from app.models import get_user, add_user
 
 auth_bp = Blueprint('auth', __name__)
 
+@auth_bp.route("/check_password", methods=["POST"])
+def check_password():
+    data = request.json
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+    user = get_user(username)
+    if user and check_password_hash(user["password"], password):
+        return jsonify({"result": "correct"})
+    return jsonify({"result": "incorrect"})
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
