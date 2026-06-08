@@ -116,14 +116,14 @@ def analysis_worker():
             task = _analysis_queue.get(timeout=1)
             if task is None:
                 break
-            img_prompt, session_messages_copy, img_src, username, chat_key = task
-            _run_image_analysis(img_prompt, session_messages_copy, img_src, username, chat_key)
+            img_prompt, session_messages_copy, img_src, username, chat_key, project_id = task
+            _run_image_analysis(img_prompt, session_messages_copy, img_src, username, chat_key, project_id)
         except queue.Empty:
             continue
         except Exception as e:
             print(f"Analysis worker error: {e}")
 
-def _run_image_analysis(img_prompt, session_messages_copy, img_src, username, chat_key):
+def _run_image_analysis(img_prompt, session_messages_copy, img_src, username, chat_key, project_id=None):
     import base64 as _b64
     try:
         if img_src and img_src.startswith("data:"):
@@ -171,7 +171,10 @@ def _run_image_analysis(img_prompt, session_messages_copy, img_src, username, ch
             session_messages_copy.append(analysis_entry)
             if username and chat_key:
                 try:
-                    save_chat_session(username, chat_key, session_messages_copy)
+                    if project_id:
+                        save_chat_session_project(username, chat_key, session_messages_copy, project_id)
+                    else:
+                        save_chat_session(username, chat_key, session_messages_copy)
                 except Exception:
                     pass
     except Exception as e:
@@ -966,10 +969,10 @@ def _do_google_search(query, user_msg=None):
         return f"{summary}\n\n{sources_html}"
     return sources_html
 
-def _auto_analyse_generated_image(img_prompt, session_messages, img_src=None, username=None, chat_key=None):
+def _auto_analyse_generated_image(img_prompt, session_messages, img_src=None, username=None, chat_key=None, project_id=None):
     """Queue image analysis to background worker (non-blocking, thread-safe)"""
     session_copy = copy.deepcopy(session_messages)
-    _analysis_queue.put((img_prompt, session_copy, img_src, username, chat_key))
+    _analysis_queue.put((img_prompt, session_copy, img_src, username, chat_key, project_id))
 
 def analyse_generated_image(img_prompt, user_question):
     import base64 as _b64
@@ -1962,7 +1965,7 @@ def generate_image_route():
     _msgs_copy = list(session["messages"])
     threading.Thread(
         target=_auto_analyse_generated_image,
-        args=(prompt, _msgs_copy, None, session.get("user"), session.get("chat_key")),
+        args=(prompt, _msgs_copy, None, session.get("user"), session.get("chat_key"), session.get("active_project_id")),
         daemon=True
     ).start()
     session.modified = True

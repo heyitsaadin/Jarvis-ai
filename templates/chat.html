@@ -1570,12 +1570,12 @@
     <div id="projectBanner" style="position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:8px;padding:8px 16px 8px 14px;background:var(--bg-primary);border-bottom:1px solid var(--border);font-family:'DM Sans',sans-serif;">
       <div style="width:10px;height:10px;border-radius:50%;background:{{ project_info.color }};flex-shrink:0;"></div>
       <span style="font-size:12px;font-weight:700;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ project_info.name }}</span>
-      <a href="/landing" style="font-size:11px;color:var(--text-dim);text-decoration:none;font-family:'DM Mono',monospace;letter-spacing:0.5px;flex-shrink:0;">← All projects</a>
+      <a href="/landing" onclick="flushSession(); return true;" style="font-size:11px;color:var(--text-dim);text-decoration:none;font-family:'DM Mono',monospace;letter-spacing:0.5px;flex-shrink:0;">← All projects</a>
     </div>
     {% endif %}
     <header class="chat-header" {% if project_info %}style="top:37px;"{% endif %}>
         <!-- Back button — left -->
-        <a href="/landing" class="back-btn" aria-label="Back">
+        <a href="/landing" onclick="flushSession(); return true;" class="back-btn" aria-label="Back">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
         </a>
 
@@ -2425,7 +2425,7 @@
 
     // Drawer sub-panels
     let drawerHistory = [];
-    const allDrawerPanels = ['drawerAbout','drawerDev','drawerChats','drawerSettings','drawerSecurity','drawerChangePassword','drawerChangeUsername','drawerDeleteAccount','drawerChatPrivacy','drawerViewChats'];
+    const allDrawerPanels = ['drawerAbout','drawerDev','drawerChats','drawerProjects','drawerSettings','drawerSecurity','drawerChangePassword','drawerChangeUsername','drawerDeleteAccount','drawerChatPrivacy','drawerViewChats'];
 
     function drawerGoTo(pageId) {
         const current = drawerHistory.length ? drawerHistory[drawerHistory.length-1] : 'drawerMain';
@@ -2475,18 +2475,67 @@
                 projects.forEach(p => {
                     const card = document.createElement('div');
                     card.className = 'd-chat-card';
+                    card.style.flexDirection = 'column';
+                    card.style.alignItems = 'stretch';
+                    card.style.gap = '0';
+                    card.style.padding = '0';
                     const date = p.created_at ? p.created_at.slice(0, 10) : '';
                     card.innerHTML = 
-                        '<a href="/project_chat/' + p.id + '" class="d-chat-link">' +
-                        '<span class="d-chat-link-title" style="color:' + (p.color || 'var(--accent)') + ';font-weight:700;">' + escHtml(p.name) + '</span>' +
-                        '<span class="d-chat-link-date">' + escHtml(date) + '</span>' +
-                        '</a>';
+                        '<div style="display:flex;align-items:center;padding:10px 12px;">' +
+                            '<a href="/project_chat/' + p.id + '" class="d-chat-link">' +
+                                '<span class="d-chat-link-title" style="color:' + (p.color || 'var(--accent)') + ';font-weight:700;">' + escHtml(p.name) + '</span>' +
+                                '<span class="d-chat-link-date">' + escHtml(date) + '</span>' +
+                            '</a>' +
+                            '<button class="d-chat-pin" onclick="toggleProjectChats(' + p.id + ', this)" style="margin-left:auto;">' +
+                                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="chevron"><polyline points="6 9 12 15 18 9"/></svg>' +
+                            '</button>' +
+                        '</div>' +
+                        '<div id="project-chats-' + p.id + '" style="display:none;padding:0 12px 10px 24px;flex-direction:column;gap:6px;"></div>';
                     container.appendChild(card);
                 });
             })
             .catch(() => {
                 container.innerHTML = '<p class="d-empty">Could not load projects.</p>';
             });
+    }
+
+    function toggleProjectChats(projectId, btn) {
+        const list = document.getElementById('project-chats-' + projectId);
+        const chevron = btn.querySelector('.chevron');
+        if (list.style.display === 'none') {
+            list.style.display = 'flex';
+            list.innerHTML = '<p class="d-empty" style="font-size:11px;padding:4px 0;">Loading...</p>';
+            chevron.style.transform = 'rotate(180deg)';
+            fetch('/projects/' + projectId + '/chats')
+                .then(r => r.json())
+                .then(data => {
+                    const chats = data.chats || [];
+                    if (!chats.length) {
+                        list.innerHTML = '<p class="d-empty" style="font-size:11px;padding:4px 0;">No chats in this project.</p>';
+                        return;
+                    }
+                    list.innerHTML = '';
+                    chats.forEach(chat => {
+                        let preview = chat.preview || 'Project chat';
+                        preview = preview.replace(/<[^>]*>/g, '').trim();
+                        const chatEl = document.createElement('a');
+                        chatEl.href = '/project_chat/' + projectId + '/resume/' + chat.session_key;
+                        chatEl.className = 'd-chat-link';
+                        chatEl.style.padding = '6px 0';
+                        chatEl.style.borderBottom = '1px solid var(--ui-subtle)';
+                        chatEl.innerHTML = 
+                            '<span class="d-chat-link-title" style="font-size:12px;">' + escHtml(preview.slice(0, 40)) + (preview.length > 40 ? '…' : '') + '</span>' +
+                            '<span class="d-chat-link-date" style="font-size:9px;">' + escHtml(chat.updated_at.slice(0, 16)) + '</span>';
+                        list.appendChild(chatEl);
+                    });
+                })
+                .catch(() => {
+                    list.innerHTML = '<p class="d-empty" style="font-size:11px;padding:4px 0;">Error loading chats.</p>';
+                });
+        } else {
+            list.style.display = 'none';
+            chevron.style.transform = 'rotate(0deg)';
+        }
     }
 
     function loadChats(containerId, clearBtnId) {
@@ -2733,10 +2782,19 @@
     }
 
     // ── Save session on tab close ──
-    window.addEventListener('beforeunload', function() {
+    function flushSession() {
         const blob = new Blob(['{}'], { type: 'application/json' });
         navigator.sendBeacon('/flush_session', blob);
+    }
+    window.addEventListener('beforeunload', flushSession);
+    window.addEventListener('pagehide', flushSession);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flushSession();
     });
+    // Auto-save every 30 seconds
+    setInterval(() => {
+        fetch('/flush_session', { method: 'POST' }).catch(() => {});
+    }, 30000);
 
     // ── Logout ──
     function triggerLogout(el) {
