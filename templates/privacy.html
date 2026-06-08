@@ -144,8 +144,12 @@
             transition: background .15s, border-color .15s, color .15s;
         }
         .nav-back { padding: 8px 14px; gap: 6px; font-size: 13px; font-weight: 500; }
-        .nav-back:hover { background: var(--border); color: var(--text); border-color: transparent; }
+        .nav-back:hover { background: var(--border); color: var(--text); border-color: transparent; transform: scale(1.05); }
+        .nav-back:active { transform: scale(0.95); }
+        .nav-back { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
         .nav-back svg { width: 15px; height: 15px; stroke: currentColor; }
+        .card { transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28), box-shadow 0.3s; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 12px 30px rgba(0,0,0,0.2); }
 
         /* ── Card Header ── */
         .card-header {
@@ -321,11 +325,16 @@
     <nav class="nav">
         <a href="/" class="nav-left">
             <div class="nav-logo">
-                <svg viewBox="0 0 100 100" width="20" height="20">
-                    <path d="M34,29 L48,29 L51,49 L37,49 Z"/>
-                    <path d="M54,29 L63,29 Q74,29 74,39 Q74,49 63,49 L54,49 Z"/>
-                    <circle cx="42" cy="62" r="11"/>
-                    <polygon points="54,52 74,72 54,72"/>
+                <svg viewBox="0 0 18 18" width="22" height="22" fill="currentColor">
+                    <rect x="0" y="0" width="3" height="2"/><rect x="15" y="0" width="3" height="2"/>
+                    <rect x="3" y="2" width="12" height="2"/>
+                    <rect x="0" y="4" width="3" height="7"/><rect x="15" y="4" width="3" height="7"/>
+                    <rect x="5" y="6" width="3" height="2"/><rect x="10" y="6" width="3" height="2"/>
+                    <rect x="3" y="11" width="5" height="2"/><rect x="12" y="11" width="3" height="1"/>
+                    <rect x="11" y="12" width="4" height="1"/>
+                    <rect x="5" y="13" width="3" height="2"/><rect x="9" y="13" width="4" height="1"/>
+                    <rect x="8" y="14" width="4" height="1"/><rect x="8" y="15" width="3" height="1"/>
+                    <rect x="8" y="16" width="2" height="1"/>
                 </svg>
             </div>
             <div>

@@ -143,16 +143,20 @@ a { text-decoration: none; color: inherit; }
   border: 1.5px solid var(--border-med);
 }
 .btn-ghost:hover { background: var(--border); }
-.btn-ghost:active { transform: scale(0.97); }
+.btn-ghost:active { transform: scale(0.94); }
 .btn-danger { background: var(--red-dim); color: var(--red); border: 1.5px solid rgba(239,68,68,0.2); }
-.btn-danger:hover { background: var(--red); color: #fff; }
-.btn-danger:active { transform: scale(0.97); }
+.btn-danger:hover { background: var(--red); color: #fff; transform: scale(1.02); }
+.btn-danger:active { transform: scale(0.94); }
 .btn-success { background: var(--green-dim); color: var(--green); border: 1.5px solid rgba(34,197,94,0.25); }
-.btn-success:hover { background: var(--green); color: #fff; }
-.btn-success:active { transform: scale(0.97); }
+.btn-success:hover { background: var(--green); color: #fff; transform: scale(1.02); }
+.btn-success:active { transform: scale(0.94); }
 .btn-amber { background: var(--amber-dim); color: var(--amber); border: 1.5px solid rgba(245,158,11,0.25); }
-.btn-amber:hover { background: var(--amber); color: #fff; }
-.btn-amber:active { transform: scale(0.97); }
+.btn-amber:hover { background: var(--amber); color: #fff; transform: scale(1.02); }
+.btn-amber:active { transform: scale(0.94); }
+.nav-item { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+.nav-item:hover { transform: translateX(5px); }
+.stat-card, .card { transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28), box-shadow 0.3s; }
+.stat-card:hover, .card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
 .btn-sm { padding: 7px 14px; font-size: 12px; }
 .btn-full { width: 100%; }
 .error-bar {
@@ -830,11 +834,11 @@ tr:hover td { background: rgba(0,0,0,0.015); }
   <div class="login-card">
     <div class="login-logo">
       <div class="login-logo-icon">
-        <svg viewBox="0 0 100 100" fill="none">
-          <path d="M34,29 L48,29 L51,49 L37,49 Z" fill="white"/>
-          <path d="M54,29 L63,29 Q74,29 74,39 Q74,49 63,49 L54,49 Z" fill="white"/>
-          <circle cx="42" cy="62" r="11" fill="white"/>
-          <polygon points="54,52 74,72 54,72" fill="white"/>
+        <svg viewBox="0 0 18 18" fill="white">
+          <rect x="0" y="0" width="3" height="2"/><rect x="15" y="0" width="3" height="2"/><rect x="3" y="2" width="12" height="2"/><rect x="0" y="4" width="3" height="7"/><rect x="15" y="4" width="3" height="7"/><rect x="5" y="6" width="3" height="2"/><rect x="10" y="6" width="3" height="2"/><rect x="3" y="11" width="5" height="2"/><rect x="12" y="11" width="3" height="1"/><rect x="11" y="12" width="4" height="1"/><rect x="5" y="13" width="3" height="2"/><rect x="9" y="13" width="4" height="1"/><rect x="8" y="14" width="4" height="1"/><rect x="8" y="15" width="3" height="1"/><rect x="8" y="16" width="2" height="1"/>
+          
+          
+          
         </svg>
       </div>
       <div>
@@ -870,11 +874,11 @@ tr:hover td { background: rgba(0,0,0,0.015); }
     <div class="sidebar-top">
       <div class="sidebar-brand">
         <div class="sidebar-brand-icon">
-          <svg viewBox="0 0 100 100" fill="none">
-            <path d="M34,29 L48,29 L51,49 L37,49 Z" fill="white"/>
-            <path d="M54,29 L63,29 Q74,29 74,39 Q74,49 63,49 L54,49 Z" fill="white"/>
-            <circle cx="42" cy="62" r="11" fill="white"/>
-            <polygon points="54,52 74,72 54,72" fill="white"/>
+          <svg viewBox="0 0 18 18" fill="white">
+            <rect x="0" y="0" width="3" height="2"/><rect x="15" y="0" width="3" height="2"/><rect x="3" y="2" width="12" height="2"/><rect x="0" y="4" width="3" height="7"/><rect x="15" y="4" width="3" height="7"/><rect x="5" y="6" width="3" height="2"/><rect x="10" y="6" width="3" height="2"/><rect x="3" y="11" width="5" height="2"/><rect x="12" y="11" width="3" height="1"/><rect x="11" y="12" width="4" height="1"/><rect x="5" y="13" width="3" height="2"/><rect x="9" y="13" width="4" height="1"/><rect x="8" y="14" width="4" height="1"/><rect x="8" y="15" width="3" height="1"/><rect x="8" y="16" width="2" height="1"/>
+            
+            
+            
           </svg>
         </div>
         <div>
@@ -1265,11 +1269,11 @@ tr:hover td { background: rgba(0,0,0,0.015); }
   <div class="mobile-drawer-top">
     <div class="mobile-drawer-brand">
       <div class="sidebar-brand-icon">
-        <svg viewBox="0 0 100 100" fill="none">
-          <path d="M34,29 L48,29 L51,49 L37,49 Z" fill="white"/>
-          <path d="M54,29 L63,29 Q74,29 74,39 Q74,49 63,49 L54,49 Z" fill="white"/>
-          <circle cx="42" cy="62" r="11" fill="white"/>
-          <polygon points="54,52 74,72 54,72" fill="white"/>
+        <svg viewBox="0 0 18 18" fill="white">
+          <rect x="0" y="0" width="3" height="2"/><rect x="15" y="0" width="3" height="2"/><rect x="3" y="2" width="12" height="2"/><rect x="0" y="4" width="3" height="7"/><rect x="15" y="4" width="3" height="7"/><rect x="5" y="6" width="3" height="2"/><rect x="10" y="6" width="3" height="2"/><rect x="3" y="11" width="5" height="2"/><rect x="12" y="11" width="3" height="1"/><rect x="11" y="12" width="4" height="1"/><rect x="5" y="13" width="3" height="2"/><rect x="9" y="13" width="4" height="1"/><rect x="8" y="14" width="4" height="1"/><rect x="8" y="15" width="3" height="1"/><rect x="8" y="16" width="2" height="1"/>
+          
+          
+          
         </svg>
       </div>
       <div>
