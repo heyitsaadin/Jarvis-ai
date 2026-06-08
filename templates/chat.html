@@ -319,7 +319,16 @@
             overflow: hidden;
             box-shadow: 0 2px 12px rgba(0,0,0,.10);
         }
-        .jarvis-img { width: 100%; height: auto; border-radius: 0; opacity: 0; transition: opacity .5s ease; display: block; }
+        .jarvis-img { 
+            width: 100%; 
+            height: auto; 
+            border-radius: 0; 
+            display: block; 
+            transition: opacity .4s ease;
+            background-color: var(--ui-subtle);
+        }
+        /* Ensure image is visible if already cached or if JS fails */
+        .jarvis-img:not([src]), .jarvis-img[src=""] { opacity: 0; }
         .jarvis-img.loaded { opacity: 1; }
         .jarvis-img-footer { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; gap: 8px; background: var(--ui-subtle); }
         .jarvis-img-caption { font-size: 11px; color: var(--text-secondary); font-style: italic; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

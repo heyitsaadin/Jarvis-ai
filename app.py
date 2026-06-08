@@ -1870,6 +1870,14 @@ def chat():
     if "user" not in session:
         return redirect("/")
     heartbeat(session["user"])
+    
+    # Check if we should start a fresh session (from landing page)
+    if request.args.get("new") == "1":
+        _flush_chat_session()
+        session["messages"] = [{"sender": "Jarvis", "text": get_greeting(session["user"])}]
+        session["chat_key"] = secrets.token_hex(8)
+        session.pop("active_project_id", None)
+    
     session.setdefault("messages", [])
     session.setdefault("is_owner", False)
     session.setdefault("awaiting_owner_code", False)
@@ -2238,25 +2246,29 @@ def account_chats():
     for r in rows:
         msgs = _json_mod.loads(r["messages"] or "[]")
         preview = ""
-        for m in msgs:
-            if m.get("sender") == "You":
-                raw = m.get("text", "")
-                if raw.startswith("[image") or raw.startswith("[2 image"):
-                    continue
-                clean = re.sub(r"<[^>]+>", "", raw).strip()
-                if clean:
-                    preview = clean[:60]
-                    break
+        # Try to find a summary from the last AI message
+        ai_msgs = [m for m in msgs if m.get("sender") == "Jarvis"]
+        if ai_msgs:
+            last_ai = ai_msgs[-1].get("text", "")
+            # Clean up the AI message (remove HTML, tags, etc)
+            clean_ai = re.sub(r"<[^>]+>", "", last_ai)
+            clean_ai = re.sub(r"\[IMAGE ANALYSIS RESULT\].*", "", clean_ai, flags=re.DOTALL)
+            clean_ai = re.sub(r"##YT_SPLIT##.*", "", clean_ai, flags=re.DOTALL)
+            clean_ai = clean_ai.strip()
+            if clean_ai and not clean_ai.startswith("Good ") and not clean_ai.startswith("Hey "):
+                preview = clean_ai[:60]
+        
+        # Fallback to user message if no suitable AI message
         if not preview:
-            for m in msgs:
-                raw = m.get("text", "")
-                if (raw.startswith("[IMAGE ANALYSIS") or "jarvis-img-wrap" in raw
-                        or raw.startswith("[IMAGE GENERATED:") or raw.startswith("[IMAGE EDITED:")):
-                    continue
-                clean = re.sub(r"<[^>]+>", "", raw).strip()
-                if clean and not clean.startswith("Good ") and not clean.startswith("Hey "):
-                    preview = clean[:60]
-                    break
+            for m in reversed(msgs):
+                if m.get("sender") == "You":
+                    raw = m.get("text", "")
+                    if raw.startswith("[image") or raw.startswith("[2 image"):
+                        continue
+                    clean = re.sub(r"<[^>]+>", "", raw).strip()
+                    if clean:
+                        preview = clean[:60]
+                        break
         chats.append({
             "id": r["id"],
             "session_key": r["session_key"],

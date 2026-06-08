@@ -956,11 +956,11 @@
       </div>
 
       <!-- My Jarvis -->
-      <a href="/chat" class="d-item new-chat">
+      <a href="/chat?new=1" class="d-item new-chat">
         <svg class="d-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         Open Chat
       </a>
-      <a href="/new_chat" class="d-item">
+      <a href="/chat?new=1" class="d-item">
         <svg class="d-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         New Chat
       </a>
@@ -1499,29 +1499,29 @@
     setTimeout(()=>{ window.location.href=path; },800);
   }
 
-  sendBtn.addEventListener('click',()=>doRedirect('/chat'));
+  sendBtn.addEventListener('click',()=>doRedirect('/chat?new=1'));
   mainInput.addEventListener('keydown',e=>{
-    if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); doRedirect('/chat'); }
+    if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); doRedirect('/chat?new=1'); }
   });
   document.getElementById('inputShell').addEventListener('click',function(e){
     if(e.target===mainInput) return;
-    doRedirect('/chat');
+    doRedirect('/chat?new=1');
   });
   mainInput.addEventListener('focus',function(){
     const isMobile = window.matchMedia('(max-width:700px)').matches;
-    if(isMobile){ this.blur(); doRedirect('/chat'); }
+    if(isMobile){ this.blur(); doRedirect('/chat?new=1'); }
   });
 
   window.handleLandingImage = function(input){
     const file = input.files[0];
     if(!file) return;
     sessionStorage.setItem('Jarvis_pending','Describe this image');
-    doRedirect('/chat');
+    doRedirect('/chat?new=1');
   };
 
   window.openImagePrompt = function(){
     sessionStorage.setItem('Jarvis_pending','Generate an image of ');
-    doRedirect('/chat');
+    doRedirect('/chat?new=1');
   };
 
   // ── Menu open/close ──
