@@ -24,8 +24,11 @@ def create_app():
     )
     
     # Initialize Database
-    init_db_pool()
-    init_db()
+    try:
+        init_db_pool()
+        init_db()
+    except Exception as e:
+        print(f"Database initialization failed: {e}")
     
     # Register Blueprints
     from app.routes.main import main_bp
