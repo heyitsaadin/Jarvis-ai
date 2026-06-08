@@ -750,10 +750,24 @@
 </head>
 <body>
 
-<!-- ════════ SPLASH SCREEN ════════ -->
-<div id="Jarvis-splash">
-  <canvas id="splash-canvas" width="120" height="120"></canvas>
-  <div id="splash-wordmark">Jarvis</div>
+<!-- ════════ WELCOME CARD (first visit only) ════════ -->
+<div id="welcomeCard" style="display:none">
+  <div id="welcomeCardBackdrop" onclick="dismissWelcome()"></div>
+  <div id="welcomeCardInner">
+    <div id="wcLogo">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#374151" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3 L12 15 Q12 20 7 20"/>
+      </svg>
+    </div>
+    <div id="wcTitle">Hey, welcome! 👋</div>
+    <div id="wcSub">I'm Mia — your personal AI assistant.<br>Ask me anything, I'm here to help.</div>
+    <div id="wcFeatures">
+      <div class="wc-feat"><span>💬</span><span>Chat naturally</span></div>
+      <div class="wc-feat"><span>🎨</span><span>Generate images</span></div>
+      <div class="wc-feat"><span>🔍</span><span>Search the web</span></div>
+    </div>
+    <button id="wcBtn" onclick="dismissWelcome()">Let's go</button>
+  </div>
 </div>
 
 <!-- Static background -->
@@ -1103,41 +1117,74 @@
   <div id="dsPanelContent" style="flex:1;overflow-y:auto;padding:16px 16px;"></div>
 </div>
 
-<!-- ════════ SPLASH SCREEN ════════ -->
+<!-- ════════ WELCOME CARD STYLES ════════ -->
 <style>
-  #Jarvis-splash {
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    background: #0a0a0a;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-    transition: transform 0.75s cubic-bezier(0.76, 0, 0.24, 1), opacity 0.35s ease;
+  #welcomeCard {
+    position: fixed; inset: 0; z-index: 99999;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 24px;
   }
-  #Jarvis-splash.slide-up {
-    transform: translateY(-100%);
-    opacity: 0;
-    pointer-events: none;
+  #welcomeCardBackdrop {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    opacity: 0; animation: wcFadeIn 0.35s 0.1s ease forwards;
   }
-  #splash-canvas {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-    display: block;
+  #welcomeCardInner {
+    position: relative; z-index: 1;
+    width: calc(100% - 32px); max-width: 400px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-bright);
+    border-radius: 24px;
+    padding: 28px 24px 24px;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: 12px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    opacity: 0; transform: translateY(32px) scale(0.97);
+    animation: wcSlideUp 0.45s 0.15s cubic-bezier(0.16,1,0.3,1) forwards;
   }
-  #splash-wordmark {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900;
-    font-size: 26px;
-    letter-spacing: 0.22em;
-    color: #f5f5f5;
-    opacity: 0;
-    text-transform: uppercase;
-    transition: opacity 0.6s ease;
+  @keyframes wcFadeIn  { to { opacity: 1; } }
+  @keyframes wcSlideUp { to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes wcDismiss { to { opacity: 0; transform: translateY(40px) scale(0.96); } }
+  #welcomeCard.dismissing #welcomeCardBackdrop { animation: wcFadeIn 0.3s ease reverse forwards; }
+  #welcomeCard.dismissing #welcomeCardInner    { animation: wcDismiss 0.3s cubic-bezier(0.4,0,1,1) forwards; }
+
+  #wcLogo {
+    width: 52px; height: 52px; border-radius: 16px;
+    background: var(--tan); display: flex; align-items: center; justify-content: center;
+    margin-bottom: 4px;
   }
-  #splash-wordmark.visible { opacity: 0.85; }
+  #wcTitle {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 20px; font-weight: 800; color: var(--text);
+    line-height: 1.2;
+  }
+  #wcSub {
+    font-size: 13.5px; color: var(--text-secondary);
+    line-height: 1.65; max-width: 280px;
+  }
+  #wcFeatures {
+    display: flex; flex-direction: column; gap: 8px;
+    width: 100%; margin: 6px 0 2px;
+  }
+  .wc-feat {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 14px;
+    font-size: 13px; color: var(--text-mid); text-align: left;
+  }
+  .wc-feat span:first-child { font-size: 16px; flex-shrink: 0; }
+  #wcBtn {
+    width: 100%; padding: 14px;
+    background: var(--text); color: var(--bg);
+    border: none; border-radius: 14px;
+    font-size: 15px; font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer; margin-top: 4px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  #wcBtn:hover  { opacity: 0.88; }
+  #wcBtn:active { transform: scale(0.97); }
 </style>
 
 <!-- ════════ LOGO ANIMATION STYLES ════════ -->
@@ -1682,119 +1729,21 @@
   });
 </script>
 
-<!-- SPLASH ANIMATION -->
+<!-- WELCOME CARD LOGIC -->
 <script>
 (function(){
-  // Pixel grid rebuilt to exactly match the uploaded logo image.
-  // Logo: pixel-art skull/demon face with two top horns, hollow face body,
-  // two square eyes, shield-shaped chin, and a bold diagonal slash bottom-right.
-  // 18 cols × 20 rows, 1-indexed from top-left.
-  const GRID = [
-    // col: 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7
-    [0,0,1,1,0,0,0,0,0,0,0,0,0,1,1,0,0,0], // row 0  — horn tops
-    [0,0,1,1,0,0,0,0,0,0,0,0,0,1,1,0,0,0], // row 1  — horns
-    [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0], // row 2  — forehead bar left+horns connect
-    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0], // row 3  — full forehead top
-    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0], // row 4  — full forehead bottom
-    [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0], // row 5  — face sides hollow
-    [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0], // row 6  — face sides hollow
-    [1,1,0,0,1,1,0,0,0,0,0,1,1,0,0,1,1,0], // row 7  — eyes top
-    [1,1,0,0,1,1,0,0,0,0,0,1,1,0,0,1,1,0], // row 8  — eyes bottom
-    [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0], // row 9  — below eyes
-    [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0], // row 10 — lower face
-    [0,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0], // row 11 — face taper in
-    [0,0,1,1,1,0,0,0,0,0,0,0,1,1,1,0,0,0], // row 12 — chin shoulders
-    [0,0,0,1,1,1,1,0,0,0,0,1,1,1,0,0,0,0], // row 13 — chin narrows
-    [0,0,0,0,1,1,1,1,1,0,1,1,1,0,0,0,0,0], // row 14 — chin base + slash start
-    [0,0,0,0,0,1,1,0,1,1,1,0,0,0,0,0,0,0], // row 15 — chin tip + slash
-    [0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0], // row 16 — slash diagonal
-    [0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0], // row 17 — slash diagonal
-    [0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0], // row 18 — slash tip
-    [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0], // row 19 — slash end
-  ];
-
-  const canvas   = document.getElementById('splash-canvas');
-  const ctx      = canvas.getContext('2d');
-  const wordmark = document.getElementById('splash-wordmark');
-  const splash   = document.getElementById('Jarvis-splash');
-
-  const COLS = GRID[0].length;
-  const ROWS = GRID.length;
-
-  // Resize canvas to fit grid cleanly
-  const PIXEL = 8; // px per grid cell
-  canvas.width  = COLS * PIXEL;
-  canvas.height = ROWS * PIXEL;
-
-  // Theme-aware colors — read current theme
-  function getColors() {
-    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-    return {
-      bg:   isDark ? '#0a0a0a' : '#fbfbfa',
-      fg:   isDark ? '#f0f0f0' : '#111111',
-      text: isDark ? '#f5f5f5' : '#111111',
-    };
+  if (!localStorage.getItem('mia_welcomed')) {
+    const card = document.getElementById('welcomeCard');
+    card.style.display = 'flex';
   }
-
-  // Apply background color to splash
-  function applyTheme() {
-    const c = getColors();
-    splash.style.background = c.bg;
-    wordmark.style.color    = c.text;
-  }
-  applyTheme();
-
-  // Watch for theme changes during splash
-  const themeObs = new MutationObserver(applyTheme);
-  themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-
-  // Collect filled pixels
-  const pixels = [];
-  for (let r = 0; r < ROWS; r++)
-    for (let c = 0; c < COLS; c++)
-      if (GRID[r][c]) pixels.push({ r, c });
-
-  // Shuffle for random build-in effect
-  for (let i = pixels.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pixels[i], pixels[j]] = [pixels[j], pixels[i]];
-  }
-
-  const TOTAL    = pixels.length;
-  const BUILD_MS = 950;
-  const HOLD_MS  = 700;
-  const WORD_MS  = 300;
-  let drawn = 0, startTime = null, wordmarkShown = false;
-
-  function drawPixel(p) {
-    ctx.fillStyle = getColors().fg;
-    ctx.fillRect(p.c * PIXEL, p.r * PIXEL, PIXEL - 1, PIXEL - 1);
-  }
-
-  function animate(ts) {
-    if (!startTime) startTime = ts;
-    const elapsed = ts - startTime;
-    const target  = Math.min(TOTAL, Math.floor((elapsed / BUILD_MS) * TOTAL));
-    while (drawn < target) drawPixel(pixels[drawn++]);
-
-    if (elapsed > WORD_MS && !wordmarkShown) {
-      wordmark.classList.add('visible');
-      wordmarkShown = true;
-    }
-
-    if (drawn < TOTAL) {
-      requestAnimationFrame(animate);
-    } else {
-      themeObs.disconnect();
-      setTimeout(function () {
-        splash.classList.add('slide-up');
-        setTimeout(function () { splash.style.display = 'none'; }, 800);
-      }, HOLD_MS);
-    }
-  }
-
-  setTimeout(function () { requestAnimationFrame(animate); }, 80);
 })();
+
+function dismissWelcome() {
+  const card = document.getElementById('welcomeCard');
+  card.classList.add('dismissing');
+  localStorage.setItem('mia_welcomed', '1');
+  setTimeout(() => { card.style.display = 'none'; }, 320);
+}
 </script>
 
 </body>
