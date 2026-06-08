@@ -2,7 +2,7 @@
 
 A personal AI assistant web app powered by **Groq LLaMA**, built with Flask and deployed on Vercel. Jarvis has a warm, conversational personality and supports image generation, image analysis and editing, PDF-based quiz and exam generation, real-time math, chat sharing, and a full user authentication system with a PostgreSQL backend.
 
-**Live Demo:** [jarvis-ai-aadin.vercel.app](https://rekai.vercel.app/)
+**Live Demo:** [jarvis-ai-aadin.vercel.app](https://jarvis-ai-aadin.vercel.app/)
 
 ---
 
@@ -51,7 +51,7 @@ A personal AI assistant web app powered by **Groq LLaMA**, built with Flask and 
 ## Project Structure
 
 ```
-Jarvis-Ai/
+Jarvis-ai/
 ├── app.py                  # Main Flask app — all routes and logic
 ├── requirements.txt        # Python dependencies
 ├── templates/
@@ -94,8 +94,8 @@ Never commit secrets. Set these in your Vercel project settings or a local `.env
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/heyitsaadin/Jarvis-Ai.git
-cd Jarvis-Ai
+git clone https://github.com/heyitsaadin/Jarvis-ai.git
+cd Jarvis-ai
 
 # 2. Install dependencies
 pip install -r requirements.txt
