@@ -1502,7 +1502,7 @@ def _extract_pdf_text(pdf_file, max_pages=20, max_chars=7000):
                 total_chars += len(t)
     return "\n".join(pages_text).strip()[:max_chars]
 
-def _groq_generate(system_prompt, user_prompt, max_tokens=2500, temperature=0.5):
+def _groq_generate(system_prompt, user_prompt, max_tokens=2500, temperature=0.5, model=None):
     keys = [k for k in [
         os.environ.get("GROQ_API_KEY", ""),
         os.environ.get("GROQ_API_KEY_2", ""),
@@ -1510,7 +1510,9 @@ def _groq_generate(system_prompt, user_prompt, max_tokens=2500, temperature=0.5)
     ] if k]
     if not keys:
         raise ValueError("No GROQ_API_KEY configured")
-    MODELS = ["llama-3.1-8b-instant", "llama3-8b-8192", "gemma2-9b-it"]
+    
+    # Use provided model or default fallback list
+    target_models = [model] if model else ["llama-3.1-8b-instant", "llama3-8b-8192", "gemma2-9b-it"]
     url = "https://api.groq.com/openai/v1/chat/completions"
     payload = {
         "messages":    [{"role": "system", "content": system_prompt},
@@ -1518,23 +1520,27 @@ def _groq_generate(system_prompt, user_prompt, max_tokens=2500, temperature=0.5)
         "max_tokens":  max_tokens,
         "temperature": temperature,
     }
-    last_err = "Unknown error"
+    
     for key in keys:
         headers = {"Authorization": "Bearer " + key, "Content-Type": "application/json"}
-        for model in MODELS:
-            payload["model"] = model
+        for m in target_models:
+            if not m: continue
+            payload["model"] = m
             try:
                 r  = requests.post(url, headers=headers, json=payload, timeout=90)
                 rj = r.json()
                 if "choices" in rj:
                     return rj["choices"][0]["message"]["content"].strip()
-                err = rj.get("error", {})
-                last_err = err.get("message", str(rj))
-                if "rate_limit" in last_err or "per day" in last_err or "tokens" in last_err.lower():
-                    break
-            except Exception as ex:
-                last_err = str(ex)
-    raise ValueError(last_err)
+                # If specific model fails, we might want to try fallbacks even if a model was requested
+                # But only if it's not the last attempt
+            except Exception:
+                continue
+    
+    # Final fallback if specific model failed or wasn't provided
+    if model:
+        return _groq_generate(system_prompt, user_prompt, max_tokens, temperature, model=None)
+    
+    raise ValueError("All Groq models/keys failed")
 
 def _parse_groq_json(raw):
     raw = raw.strip()
