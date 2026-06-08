@@ -746,6 +746,143 @@
       .input-zone { max-width: 720px; }
       .hero-title { font-size: clamp(120px, 12vw, 220px); }
     }
+
+    /* ══════════════════════════════════
+       PROJECTS SECTION
+    ══════════════════════════════════ */
+    .projects-section {
+      width:100%; max-width:560px; padding:0 20px;
+      margin-top:32px;
+      opacity:0; animation:fadeUp 0.6s 0.65s cubic-bezier(0.16,1,0.3,1) forwards;
+    }
+    .projects-header {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:14px;
+    }
+    .projects-label {
+      font-size:10px; font-family:'DM Mono',monospace;
+      letter-spacing:1.5px; text-transform:uppercase;
+      color:var(--text-dim);
+    }
+    .projects-new-btn {
+      display:flex; align-items:center; gap:5px;
+      font-size:11px; font-family:'DM Sans',sans-serif; font-weight:600;
+      color:var(--text-secondary); background:var(--surface);
+      border:1px solid var(--border); border-radius:8px;
+      padding:5px 10px; cursor:pointer; transition:all 0.15s;
+    }
+    .projects-new-btn:hover { background:var(--surface2); color:var(--text); }
+    .projects-new-btn svg { width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2; }
+    /* Empty state */
+    .projects-empty {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:10px; padding:28px 20px;
+      border:1.5px dashed var(--border); border-radius:16px;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .projects-empty:hover { border-color:var(--border-bright); background:var(--surface); }
+    .projects-empty-icon {
+      width:36px;height:36px; border-radius:10px;
+      background:var(--surface); border:1px solid var(--border);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .projects-empty-icon svg { width:16px;height:16px;stroke:var(--text-secondary);fill:none;stroke-width:1.8; }
+    .projects-empty-title {
+      font-size:13px;font-weight:700;color:var(--text);
+      font-family:'DM Sans',sans-serif;
+    }
+    .projects-empty-sub {
+      font-size:11px; color:var(--text-dim);
+      font-family:'DM Mono',monospace; letter-spacing:0.3px; text-align:center;
+    }
+    /* Project cards grid */
+    .projects-grid {
+      display:grid; grid-template-columns:1fr 1fr; gap:10px;
+    }
+    .project-card {
+      position:relative; border-radius:14px;
+      border:1px solid var(--border); background:var(--surface);
+      padding:14px 14px 12px; cursor:pointer;
+      transition:all 0.18s; overflow:hidden;
+      display:flex; flex-direction:column; gap:6px;
+      text-decoration:none;
+    }
+    .project-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.12); border-color:var(--border-bright); }
+    .project-card-accent {
+      position:absolute; top:0;left:0;right:0; height:3px;
+      border-radius:14px 14px 0 0;
+    }
+    .project-card-name {
+      font-size:13px; font-weight:700; color:var(--text);
+      font-family:'DM Sans',sans-serif; margin-top:4px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .project-card-desc {
+      font-size:11px; color:var(--text-secondary);
+      font-family:'DM Sans',sans-serif; line-height:1.5;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    }
+    .project-card-meta {
+      font-size:10px; color:var(--text-dim);
+      font-family:'DM Mono',monospace; margin-top:2px;
+    }
+    .project-card-delete {
+      position:absolute; top:10px;right:10px;
+      width:22px;height:22px; border-radius:6px;
+      background:transparent; border:none;
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer; opacity:0; transition:opacity 0.15s;
+      color:var(--text-dim);
+    }
+    .project-card:hover .project-card-delete { opacity:1; }
+    .project-card-delete:hover { background:var(--surface2); color:#ef4444; }
+    .project-card-delete svg { width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2; }
+    /* Create project modal */
+    .project-modal-overlay {
+      position:fixed; inset:0; z-index:200;
+      background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; pointer-events:none; transition:opacity 0.2s;
+    }
+    .project-modal-overlay.open { opacity:1; pointer-events:all; }
+    .project-modal {
+      background:var(--bg-primary); border:1px solid var(--border);
+      border-radius:20px; padding:24px; width:min(380px, calc(100vw - 40px));
+      box-shadow:0 24px 64px rgba(0,0,0,0.3);
+      transform:translateY(10px); transition:transform 0.2s;
+    }
+    .project-modal-overlay.open .project-modal { transform:translateY(0); }
+    .project-modal-title { font-size:15px;font-weight:800;color:var(--text);margin-bottom:16px;font-family:'DM Sans',sans-serif; }
+    .project-modal label { font-size:11px;color:var(--text-secondary);font-family:'DM Mono',monospace;letter-spacing:0.5px;text-transform:uppercase;display:block;margin-bottom:5px; }
+    .project-modal input, .project-modal textarea {
+      width:100%; box-sizing:border-box;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:10px; padding:10px 12px;
+      font-size:13px; color:var(--text); font-family:'DM Sans',sans-serif;
+      outline:none; transition:border-color 0.15s; resize:none;
+    }
+    .project-modal input:focus, .project-modal textarea:focus { border-color:var(--border-bright); }
+    .project-modal-colors { display:flex;gap:8px;margin-top:6px; }
+    .color-swatch {
+      width:22px;height:22px;border-radius:50%;cursor:pointer;
+      border:2px solid transparent; transition:border-color 0.15s, transform 0.1s;
+    }
+    .color-swatch.selected { border-color:var(--text); transform:scale(1.15); }
+    .project-modal-actions { display:flex;gap:8px;margin-top:18px; }
+    .project-modal-actions button { flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all 0.15s; }
+    .btn-create { background:var(--text);color:var(--bg-primary);border:none; }
+    .btn-create:hover { opacity:0.85; }
+    .btn-cancel { background:var(--surface);color:var(--text-secondary);border:1px solid var(--border); }
+    .btn-cancel:hover { background:var(--surface2); }
+
+    @media (min-width:768px) {
+      .projects-section { max-width:560px; }
+      .projects-grid { grid-template-columns:repeat(3,1fr); }
+    }
+    @media (min-width:1280px) {
+      .projects-section { max-width:720px; }
+      .projects-grid { grid-template-columns:repeat(4,1fr); }
+    }
   </style>
 </head>
 <body>
@@ -815,6 +952,10 @@
         <svg class="d-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         New Chat
       </a>
+      <button class="d-item" onclick="closeMenu();scrollToProjects()">
+        <svg class="d-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        Projects
+      </button>
       <button class="d-item" onclick="openImagePrompt()">
         <svg class="d-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         Generate Image
@@ -1038,6 +1179,10 @@
       <svg class="ds-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       New Chat
     </a>
+    <button class="ds-item" onclick="scrollToProjects()">
+      <svg class="ds-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      Projects
+    </button>
     <button class="ds-item" onclick="openImagePrompt()">
       <svg class="ds-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       Generate Image
@@ -1235,7 +1380,51 @@
     </div>
   </div>
 
+  <!-- ════════ PROJECTS SECTION ════════ -->
+  <div class="projects-section" id="projectsSection">
+    <div class="projects-header">
+      <span class="projects-label">Projects</span>
+      <button class="projects-new-btn" onclick="openProjectModal()" id="projectsNewBtn" style="display:none;">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Project
+      </button>
+    </div>
+    <!-- Empty state (shown when no projects) -->
+    <div class="projects-empty" id="projectsEmpty" onclick="openProjectModal()">
+      <div class="projects-empty-icon">
+        <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+      </div>
+      <div class="projects-empty-title">Start a project</div>
+      <div class="projects-empty-sub">Organise chats around a goal,<br>topic, or ongoing task.</div>
+    </div>
+    <!-- Cards grid (shown when projects exist) -->
+    <div class="projects-grid" id="projectsGrid" style="display:none;"></div>
+  </div>
+
   <p class="landing-footer">created by Aadin kc</p>
+</div>
+
+<!-- ════════ CREATE PROJECT MODAL ════════ -->
+<div class="project-modal-overlay" id="projectModalOverlay" onclick="handleModalOverlayClick(event)">
+  <div class="project-modal">
+    <div class="project-modal-title">New Project</div>
+    <div style="margin-bottom:14px;">
+      <label for="projectNameInput">Name</label>
+      <input type="text" id="projectNameInput" placeholder="e.g. App redesign, Research notes…" maxlength="80" autocomplete="off">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label for="projectDescInput">Description <span style="opacity:0.5;">(optional)</span></label>
+      <textarea id="projectDescInput" rows="2" placeholder="What's this project about?" maxlength="300"></textarea>
+    </div>
+    <div style="margin-bottom:4px;">
+      <label>Color</label>
+      <div class="project-modal-colors" id="projectColorSwatches"></div>
+    </div>
+    <div class="project-modal-actions">
+      <button class="btn-cancel" onclick="closeProjectModal()">Cancel</button>
+      <button class="btn-create" onclick="submitCreateProject()">Create</button>
+    </div>
+  </div>
 </div>
 
 <!-- Toast -->
@@ -1794,6 +1983,153 @@
   }
 
   setTimeout(function () { requestAnimationFrame(animate); }, 80);
+})();
+</script>
+
+<!-- ════════ PROJECTS SCRIPT ════════ -->
+<script>
+(function() {
+  const PROJECT_COLORS = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ef4444','#14b8a6'];
+  let selectedColor = PROJECT_COLORS[0];
+  let projectsData = [];
+
+  // ── Render color swatches ──
+  function renderSwatches() {
+    const wrap = document.getElementById('projectColorSwatches');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    PROJECT_COLORS.forEach(c => {
+      const s = document.createElement('div');
+      s.className = 'color-swatch' + (c === selectedColor ? ' selected' : '');
+      s.style.background = c;
+      s.onclick = () => { selectedColor = c; renderSwatches(); };
+      wrap.appendChild(s);
+    });
+  }
+
+  // ── Render project cards ──
+  function renderProjects() {
+    const grid = document.getElementById('projectsGrid');
+    const empty = document.getElementById('projectsEmpty');
+    const newBtn = document.getElementById('projectsNewBtn');
+    if (!grid) return;
+    if (projectsData.length === 0) {
+      grid.style.display = 'none';
+      empty.style.display = 'flex';
+      if (newBtn) newBtn.style.display = 'none';
+    } else {
+      empty.style.display = 'none';
+      grid.style.display = 'grid';
+      if (newBtn) newBtn.style.display = 'flex';
+      grid.innerHTML = projectsData.map(p => `
+        <a class="project-card" href="/project_chat/${p.id}" onclick="return handleProjectOpen(event, ${p.id})">
+          <div class="project-card-accent" style="background:${p.color || '#6366f1'}"></div>
+          <div class="project-card-name">${escHtml(p.name)}</div>
+          ${p.description ? `<div class="project-card-desc">${escHtml(p.description)}</div>` : ''}
+          <div class="project-card-meta">${p.created_at ? p.created_at.split(' ')[0] : ''}</div>
+          <button class="project-card-delete" onclick="deleteProject(event, ${p.id})" title="Delete project">
+            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </a>
+      `).join('');
+    }
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Load projects ──
+  async function loadProjects() {
+    try {
+      const r = await fetch('/projects');
+      if (!r.ok) return;
+      const data = await r.json();
+      projectsData = data.projects || [];
+      renderProjects();
+    } catch(e) {}
+  }
+
+  // ── Open/close modal ──
+  window.openProjectModal = function() {
+    selectedColor = PROJECT_COLORS[0];
+    renderSwatches();
+    document.getElementById('projectNameInput').value = '';
+    document.getElementById('projectDescInput').value = '';
+    document.getElementById('projectModalOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('projectNameInput').focus(), 120);
+  };
+  window.closeProjectModal = function() {
+    document.getElementById('projectModalOverlay').classList.remove('open');
+  };
+  window.handleModalOverlayClick = function(e) {
+    if (e.target === document.getElementById('projectModalOverlay')) closeProjectModal();
+  };
+
+  // ── Create project ──
+  window.submitCreateProject = async function() {
+    const name = document.getElementById('projectNameInput').value.trim();
+    const description = document.getElementById('projectDescInput').value.trim();
+    if (!name) {
+      document.getElementById('projectNameInput').focus();
+      document.getElementById('projectNameInput').style.borderColor = '#ef4444';
+      setTimeout(() => document.getElementById('projectNameInput').style.borderColor = '', 1200);
+      return;
+    }
+    const btn = document.querySelector('.btn-create');
+    btn.textContent = 'Creating…'; btn.disabled = true;
+    try {
+      const r = await fetch('/projects/create', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, description, color: selectedColor })
+      });
+      const data = await r.json();
+      if (data.project) {
+        projectsData.unshift(data.project);
+        renderProjects();
+        closeProjectModal();
+        // Navigate into the new project's chat
+        window.location.href = '/project_chat/' + data.project.id;
+      }
+    } catch(e) {}
+    btn.textContent = 'Create'; btn.disabled = false;
+  };
+
+  // ── Delete project ──
+  window.deleteProject = async function(e, id) {
+    e.preventDefault(); e.stopPropagation();
+    if (!confirm('Delete this project and all its chats?')) return;
+    try {
+      await fetch('/projects/' + id + '/delete', { method:'POST' });
+      projectsData = projectsData.filter(p => p.id !== id);
+      renderProjects();
+    } catch(e) {}
+  };
+
+  // ── Open project (navigate) ──
+  window.handleProjectOpen = function(e, id) {
+    // Default anchor navigation is fine — just let it go
+    return true;
+  };
+
+  // ── Scroll to projects section ──
+  window.scrollToProjects = function() {
+    const el = document.getElementById('projectsSection');
+    if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+  };
+
+  // ── Enter key in modal ──
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeProjectModal();
+    if (e.key === 'Enter' && document.getElementById('projectModalOverlay').classList.contains('open')) {
+      if (document.activeElement && document.activeElement.tagName !== 'TEXTAREA') {
+        submitCreateProject();
+      }
+    }
+  });
+
+  // ── Init ──
+  loadProjects();
 })();
 </script>
 

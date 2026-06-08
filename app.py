@@ -289,6 +289,21 @@ def init_db():
             created_at  TEXT
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS projects (
+            id          SERIAL PRIMARY KEY,
+            username    TEXT NOT NULL,
+            name        TEXT NOT NULL,
+            description TEXT DEFAULT \'\',
+            color       TEXT DEFAULT \'#6366f1\',
+            created_at  TEXT
+        )
+    """)
+    try:
+        cur.execute("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS project_id INTEGER")
+        conn.commit()
+    except Exception:
+        conn.rollback()
     conn.commit()
     cur.close()
     return_db(conn)
@@ -504,6 +519,71 @@ def delete_all_chat_sessions(username):
     conn.commit()
     cur.close()
     return_db(conn)
+
+# ── Project helpers ──────────────────────────────────────────────────────────
+
+def get_projects(username):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(
+        "SELECT id, name, description, color, created_at FROM projects WHERE username=%s ORDER BY id DESC",
+        (username,)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return_db(conn)
+    return rows
+
+def create_project(username, name, description, color):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    now = datetime.now(IST).strftime("%Y-%m-%d %H:%M")
+    cur.execute(
+        "INSERT INTO projects (username, name, description, color, created_at) VALUES (%s,%s,%s,%s,%s) RETURNING id,name,description,color,created_at",
+        (username, name, description, color, now)
+    )
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    return_db(conn)
+    return row
+
+def delete_project(username, project_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM projects WHERE id=%s AND username=%s", (project_id, username))
+    conn.commit()
+    cur.close()
+    return_db(conn)
+
+def get_project_chats(username, project_id):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(
+        "SELECT id, session_key, messages, created_at, updated_at FROM chat_sessions WHERE username=%s AND project_id=%s ORDER BY updated_at DESC",
+        (username, project_id)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    return_db(conn)
+    return rows
+
+def save_chat_session_project(username, session_key, messages, project_id):
+    conn = get_db()
+    cur = conn.cursor()
+    now = datetime.now(IST).strftime("%Y-%m-%d %H:%M")
+    cur.execute("""
+        INSERT INTO chat_sessions (username, session_key, messages, created_at, updated_at, project_id)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (username, session_key) DO UPDATE
+            SET messages=%s, updated_at=%s, project_id=%s
+    """, (username, session_key, _json_mod.dumps(messages), now, now, project_id,
+          _json_mod.dumps(messages), now, project_id))
+    conn.commit()
+    cur.close()
+    return_db(conn)
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 def is_banned(value, ban_type):
     conn = get_db()
@@ -1539,12 +1619,16 @@ def get_chat_key():
 
 def _flush_chat_session():
     try:
-        user = session.get("user")
-        key  = session.get("chat_key")
-        msgs = session.get("messages", [])
+        user       = session.get("user")
+        key        = session.get("chat_key")
+        msgs       = session.get("messages", [])
+        project_id = session.get("active_project_id")
         has_user_msg = any(m.get("sender") == "You" for m in msgs)
         if user and key and has_user_msg:
-            save_chat_session(user, key, msgs)
+            if project_id:
+                save_chat_session_project(user, key, msgs, project_id)
+            else:
+                save_chat_session(user, key, msgs)
     except Exception:
         pass
 
@@ -1787,10 +1871,29 @@ def chat():
     session.setdefault("is_owner", False)
     session.setdefault("awaiting_owner_code", False)
     session.setdefault("chat_key", secrets.token_hex(8))
+    # Resolve active project from URL or session
+    project_id = request.args.get("project", type=int) or session.get("active_project_id")
+    project_info = None
+    if project_id:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT id, name, color FROM projects WHERE id=%s AND username=%s", (project_id, session["user"]))
+        row = cur.fetchone()
+        cur.close()
+        return_db(conn)
+        if row:
+            project_info = dict(row)
+            session["active_project_id"] = project_id
+        else:
+            session.pop("active_project_id", None)
+    else:
+        session.pop("active_project_id", None)
+    session.modified = True
     return render_template("chat.html",
                            username=session["user"],
                            messages=session["messages"],
-                           is_new_reply=False)
+                           is_new_reply=False,
+                           project_info=project_info)
 
 @app.route("/send", methods=["POST"])
 @limiter.limit("30 per minute")
@@ -1818,14 +1921,22 @@ def send():
     session.modified = True
     msg_count = len(session["messages"])
     if msg_count % 10 == 0 and msg_count > 0:
-        _key = session.get("chat_key")
+        _key  = session.get("chat_key")
         _msgs = list(session["messages"])
         _user = session["user"]
-        threading.Thread(
-            target=save_chat_session,
-            args=(_user, _key, _msgs),
-            daemon=True
-        ).start()
+        _pid  = session.get("active_project_id")
+        if _pid:
+            threading.Thread(
+                target=save_chat_session_project,
+                args=(_user, _key, _msgs, _pid),
+                daemon=True
+            ).start()
+        else:
+            threading.Thread(
+                target=save_chat_session,
+                args=(_user, _key, _msgs),
+                daemon=True
+            ).start()
     return _json_mod.dumps({"reply": reply}), 200, {"Content-Type": "application/json"}
 
 @app.route("/generate_image", methods=["POST"])
@@ -1866,6 +1977,7 @@ def new_chat():
     greeting = get_greeting(username)
     session["messages"] = [{"sender": "Mia", "text": greeting}]
     session["chat_key"] = secrets.token_hex(8)
+    session.pop("active_project_id", None)
     session.modified = True
     return redirect("/chat")
 
@@ -1980,6 +2092,93 @@ def send_image():
         return jsonify({"reply": reply, "intent": intent})
     except Exception as e:
         return jsonify({"reply": f"Error: {str(e)}"})
+
+# ═══════════════════════════════════════════════════════════════
+#  PROJECT ROUTES
+# ═══════════════════════════════════════════════════════════════
+
+@app.route("/projects", methods=["GET"])
+def projects_list():
+    if "user" not in session:
+        return redirect("/")
+    heartbeat(session["user"])
+    projects = get_projects(session["user"])
+    return _json_mod.dumps({"projects": [dict(p) for p in projects]}), 200, {"Content-Type": "application/json"}
+
+@app.route("/projects/create", methods=["POST"])
+def projects_create():
+    if "user" not in session:
+        return _json_mod.dumps({"error": "not_logged_in"}), 401, {"Content-Type": "application/json"}
+    data = request.get_json(silent=True) or {}
+    name = data.get("name", "").strip()
+    description = data.get("description", "").strip()
+    color = data.get("color", "#6366f1").strip()
+    if not name:
+        return _json_mod.dumps({"error": "name_required"}), 400, {"Content-Type": "application/json"}
+    project = create_project(session["user"], name[:80], description[:300], color)
+    return _json_mod.dumps({"project": dict(project)}), 200, {"Content-Type": "application/json"}
+
+@app.route("/projects/<int:project_id>/delete", methods=["POST"])
+def projects_delete(project_id):
+    if "user" not in session:
+        return _json_mod.dumps({"error": "not_logged_in"}), 401, {"Content-Type": "application/json"}
+    delete_project(session["user"], project_id)
+    return _json_mod.dumps({"ok": True}), 200, {"Content-Type": "application/json"}
+
+@app.route("/projects/<int:project_id>/chats")
+def project_chats(project_id):
+    if "user" not in session:
+        return _json_mod.dumps({"error": "not_logged_in"}), 401, {"Content-Type": "application/json"}
+    chats = get_project_chats(session["user"], project_id)
+    result = []
+    for c in chats:
+        msgs = _json_mod.loads(c["messages"]) if c.get("messages") else []
+        preview = next((m["text"][:60] for m in msgs if m.get("sender") == "You"), "No messages yet")
+        result.append({"session_key": c["session_key"], "preview": preview, "updated_at": c["updated_at"]})
+    return _json_mod.dumps({"chats": result}), 200, {"Content-Type": "application/json"}
+
+@app.route("/project_chat/<int:project_id>")
+def project_chat_enter(project_id):
+    """Start or resume a chat scoped to a project."""
+    if "user" not in session:
+        return redirect("/")
+    _flush_chat_session()
+    heartbeat(session["user"])
+    username = session["user"]
+    greeting = get_greeting(username)
+    session["messages"] = [{"sender": "Mia", "text": greeting}]
+    session["chat_key"] = secrets.token_hex(8)
+    session["active_project_id"] = project_id
+    session.modified = True
+    return redirect(f"/chat?project={project_id}")
+
+@app.route("/project_chat/<int:project_id>/resume/<session_key>")
+def project_chat_resume(project_id, session_key):
+    """Resume an existing project chat session."""
+    if "user" not in session:
+        return redirect("/")
+    _flush_chat_session()
+    heartbeat(session["user"])
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute(
+        "SELECT messages FROM chat_sessions WHERE username=%s AND session_key=%s AND project_id=%s",
+        (session["user"], session_key, project_id)
+    )
+    row = cur.fetchone()
+    cur.close()
+    return_db(conn)
+    if row:
+        session["messages"] = _json_mod.loads(row["messages"])
+        session["chat_key"] = session_key
+    else:
+        session["messages"] = [{"sender": "Mia", "text": get_greeting(session["user"])}]
+        session["chat_key"] = secrets.token_hex(8)
+    session["active_project_id"] = project_id
+    session.modified = True
+    return redirect(f"/chat?project={project_id}")
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 @app.route("/account")
 def account():

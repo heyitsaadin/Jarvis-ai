@@ -1310,6 +1310,10 @@
                 <svg class="d-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 New chat
             </a>
+            <a href="/landing#projects" class="d-item">
+                <svg class="d-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Projects
+            </a>
             <button class="d-item" onclick="drawerGoTo('drawerChats')">
                 <svg class="d-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 Chats
@@ -1531,7 +1535,14 @@
 
 <!-- ════════ MAIN CHAT ════════ -->
 <div class="chat-container">
-    <header class="chat-header">
+    {% if project_info %}
+    <div id="projectBanner" style="position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:8px;padding:8px 16px 8px 14px;background:var(--bg-primary);border-bottom:1px solid var(--border);font-family:'DM Sans',sans-serif;">
+      <div style="width:10px;height:10px;border-radius:50%;background:{{ project_info.color }};flex-shrink:0;"></div>
+      <span style="font-size:12px;font-weight:700;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ project_info.name }}</span>
+      <a href="/landing" style="font-size:11px;color:var(--text-dim);text-decoration:none;font-family:'DM Mono',monospace;letter-spacing:0.5px;flex-shrink:0;">← All projects</a>
+    </div>
+    {% endif %}
+    <header class="chat-header" {% if project_info %}style="top:37px;"{% endif %}>
         <!-- Back button — left -->
         <a href="/landing" class="back-btn" aria-label="Back">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -1577,7 +1588,7 @@
         </div>
     </header>
 
-    <main class="message-stream" id="messageStream"></main>
+    <main class="message-stream" id="messageStream" {% if project_info %}style="padding-top:109px;"{% endif %}></main>
 
     <!-- Tray backdrop — body-level so z-index works -->
     <div class="tray-backdrop" id="trayBackdrop"></div>
