@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Mia AI — Guest</title>
+    <title>Jarvis AI — Guest</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
@@ -150,46 +150,46 @@
         @keyframes dotPulse { 0%,80%,100%{transform:scale(.8);opacity:.4} 40%{transform:scale(1.1);opacity:1} }
 
         /* Images */
-        .mia-img-wrap { max-width:280px; border-radius:16px; overflow:hidden; background:var(--ui-subtle); box-shadow:0 4px 20px rgba(0,0,0,.08); margin:4px 0; }
-        .mia-img { width:100%; display:block; opacity:0; transition:opacity .4s; }
-        .mia-img.loaded { opacity:1; }
-        .mia-img-footer { display:flex; align-items:center; padding:8px 12px; gap:8px; }
-        .mia-img-caption { font-size:12px; color:var(--text-secondary); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .mia-img-dl { background:none; border:none; cursor:pointer; color:var(--text-secondary); padding:4px; border-radius:6px; display:flex; align-items:center; }
-        .mia-img-skeleton { display:flex; align-items:center; gap:10px; padding:14px 18px; background:var(--ui-subtle); border-radius:16px; }
-        .mia-img-spinner { width:16px; height:16px; border-radius:50%; border:2px solid rgba(127,127,127,.2); border-top-color:var(--text-secondary); animation:spin .8s linear infinite; }
+        .jarvis-img-wrap { max-width:280px; border-radius:16px; overflow:hidden; background:var(--ui-subtle); box-shadow:0 4px 20px rgba(0,0,0,.08); margin:4px 0; }
+        .jarvis-img { width:100%; display:block; opacity:0; transition:opacity .4s; }
+        .jarvis-img.loaded { opacity:1; }
+        .jarvis-img-footer { display:flex; align-items:center; padding:8px 12px; gap:8px; }
+        .jarvis-img-caption { font-size:12px; color:var(--text-secondary); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .jarvis-img-dl { background:none; border:none; cursor:pointer; color:var(--text-secondary); padding:4px; border-radius:6px; display:flex; align-items:center; }
+        .jarvis-img-skeleton { display:flex; align-items:center; gap:10px; padding:14px 18px; background:var(--ui-subtle); border-radius:16px; }
+        .jarvis-img-spinner { width:16px; height:16px; border-radius:50%; border:2px solid rgba(127,127,127,.2); border-top-color:var(--text-secondary); animation:spin .8s linear infinite; }
         @keyframes spin { to{transform:rotate(360deg)} }
-        .mia-img-gen-label { font-size:13px; color:var(--text-secondary); }
+        .jarvis-img-gen-label { font-size:13px; color:var(--text-secondary); }
 
         /* YouTube */
-        .mia-yt-wrap {
+        .jarvis-yt-wrap {
             max-width: 340px;
             border-radius: 14px;
             overflow: hidden;
             background: #000;
             margin: 2px 0;
         }
-        .mia-yt-player {
+        .jarvis-yt-player {
             position: relative;
             width: 100%;
             padding-bottom: 56.25%; /* 16:9 */
             height: 0;
             overflow: hidden;
         }
-        .mia-yt-player iframe {
+        .jarvis-yt-player iframe {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
             border: none;
         }
-        .mia-yt-footer {
+        .jarvis-yt-footer {
             padding: 8px 10px;
             background: var(--ui-subtle);
             display: flex;
             flex-direction: column;
             gap: 2px;
         }
-        .mia-yt-title {
+        .jarvis-yt-title {
             font-size: 12px;
             font-weight: 600;
             color: var(--text-primary);
@@ -197,13 +197,13 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .mia-yt-channel { font-size: 10px; color: var(--text-secondary); }
-        .mia-yt-fallback { background: var(--ui-subtle); padding: 12px; }
-        .mia-yt-link {
+        .jarvis-yt-channel { font-size: 10px; color: var(--text-secondary); }
+        .jarvis-yt-fallback { background: var(--ui-subtle); padding: 12px; }
+        .jarvis-yt-link {
             font-size: 13px; font-weight: 600;
             color: #ef4444; text-decoration: none;
         }
-        .mia-yt-link:hover { text-decoration: underline; }
+        .jarvis-yt-link:hover { text-decoration: underline; }
 
         /* Wikipedia */
         .wsearch-wrap    { max-width:340px; border-radius:14px; background:var(--ui-subtle); padding:10px; margin-top:6px; }
@@ -530,7 +530,7 @@
     </style>
     <script>
         (function() {
-            var t = localStorage.getItem('mia-dark') ? 'dark' : 'light';
+            var t = localStorage.getItem('jarvis-dark') ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', t);
         })();
     </script>
@@ -561,9 +561,9 @@
         <div class="welcome-handle"></div>
         <div class="welcome-emoji">👋</div>
         <div class="welcome-title">You're in Guest Mode</div>
-        <div class="welcome-sub">Explore Mia AI with no account needed. Some features are limited — create a free account to unlock everything.</div>
+        <div class="welcome-sub">Explore Jarvis AI with no account needed. Some features are limited — create a free account to unlock everything.</div>
 
-        <div class="welcome-section-label">Try asking Mia</div>
+        <div class="welcome-section-label">Try asking Jarvis</div>
         <div class="welcome-chips">
             <div class="welcome-chip"><span>✨</span> Generate an image</div>
             <div class="welcome-chip"><span>🎬</span> Find me a YouTube video</div>
@@ -634,7 +634,7 @@
 
     <header class="chat-header">
         <div class="header-left">
-            <span class="brand">Mia AI</span>
+            <span class="brand">Jarvis AI</span>
             <span class="guest-chip">
                 <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 {{ guest_label }}
@@ -770,9 +770,9 @@
         const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         document.body.setAttribute('data-theme', next);
         document.documentElement.setAttribute('data-theme', next);
-        next === 'dark' ? localStorage.setItem('mia-dark','1') : localStorage.removeItem('mia-dark');
+        next === 'dark' ? localStorage.setItem('jarvis-dark','1') : localStorage.removeItem('jarvis-dark');
     }
-    document.body.setAttribute('data-theme', localStorage.getItem('mia-dark') ? 'dark' : 'light');
+    document.body.setAttribute('data-theme', localStorage.getItem('jarvis-dark') ? 'dark' : 'light');
 
     /* ── Modal ── */
     const MODAL_ICONS = {
@@ -838,7 +838,7 @@
         if (!isUser) {
             const lbl = document.createElement('div');
             lbl.className = 'meta-label';
-            lbl.textContent = 'Mia';
+            lbl.textContent = 'Jarvis';
             row.appendChild(lbl);
         }
 
@@ -870,9 +870,9 @@
             ytWrap.innerHTML = DOMPurify.sanitize(ytPart, YT_CONFIG);
             row.appendChild(ytWrap);
             addCopyBtns(row); return row;
-        } else if (raw.includes('mia-yt-wrap')) {
+        } else if (raw.includes('jarvis-yt-wrap')) {
             txt.innerHTML = DOMPurify.sanitize(raw, YT_CONFIG);
-        } else if (raw.includes('mia-img-wrap')) {
+        } else if (raw.includes('jarvis-img-wrap')) {
             txt.innerHTML = DOMPurify.sanitize(raw, IMG_CONFIG);
         } else {
             txt.innerHTML = DOMPurify.sanitize(marked.parse(raw));
@@ -927,10 +927,10 @@
             const data = await fetch('/send_image_guest', { method:'POST', body:fd }).then(r => r.json());
             typing.remove(); submitBtn.disabled = false;
             if (data.limit) { showModal('imgs', 'Analysis limit reached', data.reply); return; }
-            stream.appendChild(makeBubble({ sender:'Mia', text:data.reply }, true));
+            stream.appendChild(makeBubble({ sender:'Jarvis', text:data.reply }, true));
         } catch {
             typing.remove(); submitBtn.disabled = false;
-            stream.appendChild(makeBubble({ sender:'Mia', text:'Something went wrong. Try again.' }, true));
+            stream.appendChild(makeBubble({ sender:'Jarvis', text:'Something went wrong. Try again.' }, true));
         }
         stream.scrollTop = stream.scrollHeight;
     }
@@ -960,9 +960,9 @@
             skeleton = document.createElement('div');
             skeleton.className = 'msg-row bot-row msg-enter';
             skeleton.innerHTML =
-                '<div class="mia-img-skeleton">' +
-                '<div class="mia-img-spinner"></div>' +
-                '<span class="mia-img-gen-label">Generating image…</span>' +
+                '<div class="jarvis-img-skeleton">' +
+                '<div class="jarvis-img-spinner"></div>' +
+                '<span class="jarvis-img-gen-label">Generating image…</span>' +
                 '</div>';
             stream.appendChild(skeleton);
         } else {
@@ -992,11 +992,11 @@
             if (data.msgs_left !== undefined) msgsLeft = data.msgs_left;
             updateLimits();
 
-            if (data.reply) stream.appendChild(makeBubble({ sender:'Mia', text:data.reply }, true));
+            if (data.reply) stream.appendChild(makeBubble({ sender:'Jarvis', text:data.reply }, true));
         } catch {
             if (skeleton) skeleton.remove(); else typing.remove();
             submitBtn.disabled = false;
-            stream.appendChild(makeBubble({ sender:'Mia', text:'Something went wrong. Try again.' }, true));
+            stream.appendChild(makeBubble({ sender:'Jarvis', text:'Something went wrong. Try again.' }, true));
         }
         stream.scrollTop = stream.scrollHeight;
     }
@@ -1060,10 +1060,10 @@
     /* ── Welcome modal ── */
     function closeWelcome() {
         document.getElementById('welcomeModal').classList.remove('show');
-        sessionStorage.setItem('mia-guest-welcomed', '1');
+        sessionStorage.setItem('jarvis-guest-welcomed', '1');
     }
     // Show on first visit this session
-    if (!sessionStorage.getItem('mia-guest-welcomed')) {
+    if (!sessionStorage.getItem('jarvis-guest-welcomed')) {
         setTimeout(() => document.getElementById('welcomeModal').classList.add('show'), 600);
     }
     // Tap backdrop to dismiss
