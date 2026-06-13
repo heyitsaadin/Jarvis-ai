@@ -857,14 +857,15 @@
     }
     .project-card {
       position:relative; border-radius:14px;
-      border:1px solid var(--border); background:var(--surface);
-      padding:14px 14px 12px; cursor:pointer;
+      border:1px solid var(--border-bright); background:var(--surface);
+      padding:16px 44px 14px 16px; cursor:pointer;
       transition:all 0.18s; overflow:hidden;
-      display:flex; flex-direction:column; gap:4px;
+      display:flex; flex-direction:column; gap:5px;
       text-decoration:none;
     }
-    .project-card:hover { transform:translateY(-4px) scale(1.01); box-shadow:0 12px 32px rgba(0,0,0,0.15); border-color:var(--border-bright); }
-    .project-card { transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s, border-color 0.2s; }
+    .project-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.18); border-color:var(--border-bright); background:var(--surface2); }
+    .project-card:active { transform:scale(0.97); box-shadow:none; background:var(--surface2); }
+    .project-card { transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.18s, border-color 0.15s, background 0.15s; }
     .ds-item { transition: transform 0.15s ease, background 0.15s; }
     .ds-item:hover { transform: translateX(4px); }
     .btn-create, .btn-cancel, .projects-new-btn, .land-attach-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -873,9 +874,11 @@
       display:none;
     }
     .project-card-name {
-      font-size:13px; font-weight:700;
-      font-family:'DM Sans',sans-serif;
+      font-size:17px; font-weight:900;
+      font-family:'Barlow Condensed',sans-serif;
+      letter-spacing:0.02em; text-transform:uppercase;
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      color:var(--text);
     }
     .project-card-desc {
       font-size:11px; color:var(--text-secondary);
@@ -888,14 +891,14 @@
     }
     .project-card-delete {
       position:absolute; top:10px;right:10px;
-      width:22px;height:22px; border-radius:6px;
-      background:transparent; border:none;
+      width:26px;height:26px; border-radius:8px;
+      background:var(--surface2); border:1px solid var(--border);
       display:flex;align-items:center;justify-content:center;
-      cursor:pointer; opacity:0; transition:opacity 0.15s;
-      color:var(--text-dim);
+      cursor:pointer; opacity:1; transition:background 0.15s, color 0.15s, transform 0.1s;
+      color:var(--text-secondary);
     }
-    .project-card:hover .project-card-delete { opacity:1; }
-    .project-card-delete:hover { background:var(--surface2); color:#ef4444; }
+    .project-card-delete:hover { background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.3); color:#ef4444; }
+    .project-card-delete:active { transform:scale(0.9); }
     .project-card-delete svg { width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2; }
     /* Create project modal */
     .project-modal-overlay {
@@ -1504,10 +1507,7 @@
       <label for="projectDescInput">Description <span style="opacity:0.5;">(optional)</span></label>
       <textarea id="projectDescInput" rows="2" placeholder="What's this project about?" maxlength="300"></textarea>
     </div>
-    <div style="margin-bottom:4px;">
-      <label>Color</label>
-      <div class="project-modal-colors" id="projectColorSwatches"></div>
-    </div>
+
     <div class="project-modal-actions">
       <button class="btn-cancel" onclick="closeProjectModal()">Cancel</button>
       <button class="btn-create" onclick="submitCreateProject()">Create</button>
@@ -2107,8 +2107,8 @@
       grid.style.display = 'grid';
       if (newBtn) newBtn.style.display = 'flex';
       grid.innerHTML = projectsData.map(p => `
-        <a class="project-card" href="/project_chat/${p.id}" onclick="return handleProjectOpen(event, ${p.id})">
-          <div class="project-card-name" style="color:${p.color || '#6366f1'}">${escHtml(p.name)}</div>
+        <a class="project-card" href="/project_chat/${p.id}" onclick="return handleProjectOpen(event, ${p.id})" style="border-left:3px solid ${p.color || '#6366f1'}">
+          <div class="project-card-name">${escHtml(p.name)}</div>
           ${p.description ? `<div class="project-card-desc">${escHtml(p.description)}</div>` : ''}
           <div class="project-card-meta">${p.created_at ? p.created_at.split(' ')[0] : ''}</div>
           <button class="project-card-delete" onclick="deleteProject(event, ${p.id})" title="Delete project">
