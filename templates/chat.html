@@ -1035,6 +1035,24 @@
             border-color: rgba(255,255,255,0.18);
             box-shadow: 0 8px 32px rgba(0,0,0,0.18);
         }
+        
+        /* Gemini-style bottom gradient and smooth fade */
+        .dock-wrapper {
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dock-wrapper::before {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 200px;
+            background: linear-gradient(to top, var(--bg-primary) 20%, transparent);
+            pointer-events: none;
+            z-index: -1;
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        body.input-focused .dock-wrapper::before {
+            opacity: 0;
+        }
         [data-theme="dark"] .input-dock:focus-within {
             background: rgba(255,255,255,0.07);
         }
@@ -2105,6 +2123,23 @@
         this.style.height = '38px';
         if (this.scrollHeight > 38) this.style.height = this.scrollHeight + 'px';
         inputDock.classList.toggle('has-content', this.value.trim().length > 0);
+        
+        // Handle gradient fade on content
+        if (this.value.trim().length > 0) {
+            document.body.classList.add('input-focused');
+        } else if (document.activeElement !== this) {
+            document.body.classList.remove('input-focused');
+        }
+    });
+
+    chatInput.addEventListener('focus', () => {
+        document.body.classList.add('input-focused');
+    });
+
+    chatInput.addEventListener('blur', () => {
+        if (chatInput.value.trim().length === 0) {
+            document.body.classList.remove('input-focused');
+        }
     });
 
     function sendText() {
