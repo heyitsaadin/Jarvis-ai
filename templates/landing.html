@@ -73,29 +73,56 @@
 
     /* ── Static background — mesh gradient, no animation, no lag ── */
     
-    .bg-mesh{
+    
+.bg-mesh{
         position:fixed;
         inset:0;
         z-index:0;
         pointer-events:none;
-        background:
-            radial-gradient(circle at 12% 12%, rgba(255,200,120,.32) 0%, transparent 40%),
-            radial-gradient(circle at 88% 15%, rgba(255,140,140,.22) 0%, transparent 40%),
-            radial-gradient(circle at 50% 65%, rgba(120,180,255,.18) 0%, transparent 45%),
-            radial-gradient(circle at 75% 85%, rgba(190,140,255,.14) 0%, transparent 40%);
-        filter:blur(45px);
+        overflow:hidden;
     }
 
-    [data-theme="light"] .bg-mesh{
+    .bg-mesh::before{
+        content:"";
+        position:absolute;
+        top:-22vh;
+        left:-10%;
+        width:120%;
+        height:55vh;
         background:
-            radial-gradient(circle at 12% 12%, rgba(255,200,120,.38) 0%, transparent 40%),
-            radial-gradient(circle at 88% 15%, rgba(255,140,140,.26) 0%, transparent 40%),
-            radial-gradient(circle at 50% 65%, rgba(120,180,255,.20) 0%, transparent 45%),
-            radial-gradient(circle at 75% 85%, rgba(190,140,255,.16) 0%, transparent 40%);
+            radial-gradient(circle at 10% 50%, rgba(255,180,120,.55), transparent 38%),
+            radial-gradient(circle at 35% 35%, rgba(255,120,180,.45), transparent 35%),
+            radial-gradient(circle at 60% 55%, rgba(120,180,255,.45), transparent 38%),
+            radial-gradient(circle at 85% 35%, rgba(180,120,255,.40), transparent 35%);
+        filter:blur(55px);
+        border-bottom-left-radius:45% 100%;
+        border-bottom-right-radius:55% 100%;
+        transform:rotate(-2deg);
     }
-    
 
-    /* ── Thin horizontal line accents ── */
+    .bg-mesh::after{
+        content:"";
+        position:absolute;
+        top:-18vh;
+        left:-5%;
+        width:110%;
+        height:42vh;
+        background:
+            linear-gradient(90deg,
+                rgba(255,190,120,.18),
+                rgba(255,120,180,.18),
+                rgba(120,180,255,.18),
+                rgba(180,120,255,.18));
+        filter:blur(70px);
+        border-bottom-left-radius:60% 100%;
+        border-bottom-right-radius:40% 100%;
+    }
+
+    [data-theme="light"] .bg-mesh::before{ opacity:.9; }
+    [data-theme="light"] .bg-mesh::after{ opacity:.75; }
+
+
+/* ── Thin horizontal line accents ── */
     .bg-lines {
       position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; opacity:0.04;
     }
