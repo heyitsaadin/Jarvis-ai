@@ -1213,26 +1213,29 @@
 
         /* ════ EMPTY / WELCOME STATE ════ */
         @keyframes greetFadeUp {
-            from { opacity: 0; transform: translate(-50%, calc(-50% + 22px)) scale(0.96); }
-            to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            from { opacity: 0; transform: translateY(18px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes greetGlow {
             0%, 100% { text-shadow: 0 0 40px rgba(120,60,255,0.5), 0 0 80px rgba(0,162,255,0.25); }
             50%       { text-shadow: 0 0 60px rgba(180,0,255,0.7), 0 0 120px rgba(0,162,255,0.4), 0 2px 0 rgba(255,255,255,0.1); }
         }
+        @keyframes cursorBlink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
+        }
 
         .chat-empty-state {
             position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
+            /* sit in upper-centre, well above the dock */
+            top: 0; left: 0; right: 0; bottom: 0;
             display: flex; flex-direction: column;
-            align-items: center;
+            align-items: center; justify-content: center;
             pointer-events: none;
             z-index: 8;
-            width: 100%;
-            padding: 0 28px;
-            /* shift up to leave room for dock */
-            margin-top: -60px;
+            padding: 0 32px;
+            /* nudge upward so gradient colours show below */
+            padding-bottom: 140px;
             opacity: 1;
             transition: opacity 0.4s ease;
         }
@@ -1245,22 +1248,39 @@
             letter-spacing: -0.5px;
             color: #fff;
             text-align: center;
-            line-height: 1.25;
+            line-height: 1.3;
             margin: 0;
-            animation: greetFadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both, greetGlow 4s ease-in-out infinite 0.65s;
+            /* typewriter revealed via JS — start invisible */
+            min-height: 1.3em;
+            animation: greetGlow 4s ease-in-out infinite 1s;
+        }
+        /* Typewriter cursor appended via JS */
+        .tw-cursor {
+            display: inline-block;
+            width: 2px; height: 1em;
+            background: rgba(255,255,255,0.85);
+            margin-left: 3px;
+            vertical-align: middle;
+            border-radius: 1px;
+            animation: cursorBlink 0.75s step-end infinite;
         }
         [data-theme="light"] .chat-empty-state h2 {
             color: #1a0a4a;
-            animation: greetFadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+            animation: none;
             text-shadow: none;
         }
         .chat-empty-state .greet-sub {
             font-size: 14px;
             font-weight: 400;
-            color: rgba(255,255,255,0.45);
+            color: rgba(255,255,255,0.42);
             margin-top: 10px;
             letter-spacing: 0.2px;
-            animation: greetFadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+        .chat-empty-state .greet-sub.visible {
+            opacity: 1;
         }
         [data-theme="light"] .chat-empty-state .greet-sub {
             color: rgba(60,30,120,0.5);
@@ -2280,36 +2300,54 @@
     const emptyText    = document.getElementById('emptyStateText');
     const emptySubEl   = document.getElementById('emptyStateSub');
 
-    // Personalise the empty state greeting with random animated greetings
+    // Personalise the empty state greeting with random animated greetings + typewriter
     (function() {
         const drawerName = document.querySelector('.drawer-uname');
         const name = drawerName ? drawerName.textContent.trim() : null;
         const n = name || 'you';
 
         const greetings = [
-            { main: `Good to see you, ${n}`, sub: `Brain's warmed up — what do you need?` },
-            { main: `Hey ${n}! Ready when you are`, sub: `Ask me anything, I've got you.` },
-            { main: `What's on your mind, ${n}?`, sub: `Let's figure it out together.` },
-            { main: `Welcome back, ${n}`, sub: `What shall we tackle today?` },
-            { main: `Hi ${n}! Let's do something great`, sub: `Ask away — no question too big or small.` },
-            { main: `${n}, what can I help with?`, sub: `I'm all ears and fully loaded.` },
-            { main: `Morning, ${n}!`, sub: `Coffee optional, answers guaranteed.` },
-            { main: `Hello ${n} ✦`, sub: `Your AI is online and ready.` },
+            { main: `Good to see you, ${n}`,           sub: `Brain's warmed up — what do you need?` },
+            { main: `Hey ${n}! Ready when you are`,    sub: `Ask me anything, I've got you.` },
+            { main: `What's on your mind, ${n}?`,      sub: `Let's figure it out together.` },
+            { main: `Welcome back, ${n}`,              sub: `What shall we tackle today?` },
+            { main: `Hi ${n}! Let's do something great`, sub: `No question too big or small.` },
+            { main: `${n}, what can I help with?`,     sub: `I'm all ears and fully loaded.` },
+            { main: `Morning, ${n}!`,                  sub: `Coffee optional, answers guaranteed.` },
+            { main: `Hello ${n} ✦`,                    sub: `Your personal AI, online and ready.` },
         ];
 
-        // Pick a random greeting each time, but also cycle (avoids same one twice in a row)
         const lastIdx = parseInt(sessionStorage.getItem('j_last_greet') || '-1');
         let idx;
         do { idx = Math.floor(Math.random() * greetings.length); } while (idx === lastIdx && greetings.length > 1);
         sessionStorage.setItem('j_last_greet', idx);
 
         const g = greetings[idx];
-        emptyText.textContent = g.main;
-        if (emptySubEl) emptySubEl.textContent = g.sub;
+        if (emptySubEl) { emptySubEl.textContent = g.sub; }
 
-        // Re-trigger animation by replacing the element
-        emptyText.style.animation = 'none';
-        requestAnimationFrame(() => { emptyText.style.animation = ''; });
+        // Typewriter effect
+        emptyText.textContent = '';
+        const cursor = document.createElement('span');
+        cursor.className = 'tw-cursor';
+        emptyText.appendChild(cursor);
+
+        const text = g.main;
+        let i = 0;
+        const speed = 42; // ms per character
+
+        // Small initial delay so page settles
+        setTimeout(function typeChar() {
+            if (i < text.length) {
+                // Insert char before cursor
+                emptyText.insertBefore(document.createTextNode(text[i]), cursor);
+                i++;
+                setTimeout(typeChar, speed);
+            } else {
+                // Done typing — remove cursor after a beat, fade in subtitle
+                setTimeout(() => { cursor.remove(); }, 800);
+                if (emptySubEl) emptySubEl.classList.add('visible');
+            }
+        }, 280);
     })();
 
     function syncEmptyState() {
