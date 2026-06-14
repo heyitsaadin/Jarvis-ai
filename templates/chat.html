@@ -1243,8 +1243,16 @@
         }
         body.jarvis-welcome .jarvis-greeting {
             opacity: 1; transform: scale(1);
-            pointer-events: auto; /* active: tappable to dismiss */
+            pointer-events: auto;
             cursor: pointer;
+        }
+        /* Hide the message stream behind the overlay */
+        body.jarvis-welcome .message-stream {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .message-stream {
+            transition: opacity 0.5s ease;
         }
         .jarvis-greeting h2 {
             font-size: clamp(24px, 7vw, 36px);
