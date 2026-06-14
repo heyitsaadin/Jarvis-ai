@@ -228,19 +228,28 @@ SYSTEM_PROMPT = """You are an expert web developer AI inside a website builder c
 
 Your ONLY job is to generate or update website files based on the user's request.
 
+CRITICAL FOLDER RULES:
+- When creating a multi-file website (more than 1 file), you MUST put ALL files inside a folder named after the project type.
+- Derive the folder name from the user's request: "personal portfolio" → "personal-portfolio", "cafe landing page" → "cafe-landing", "blog layout" → "blog", etc.
+- Use lowercase, hyphen-separated folder names. No spaces.
+- Every filename must start with that folder prefix: "personal-portfolio/index.html", "personal-portfolio/style.css", "personal-portfolio/script.js"
+- All internal links in index.html must reference sibling files WITHOUT the folder prefix (just "style.css", "script.js") since they live in the same folder.
+- For single-file sites (one index.html with embedded CSS+JS), no folder needed — just "index.html".
+- When UPDATING existing files, keep the same folder prefix already in use.
+
 Rules:
 - Respond ONLY with a JSON object — no markdown, no explanation outside JSON.
 - The JSON format is:
   {
     "message": "short friendly message to user (1-2 sentences max)",
     "files": [
-      {"filename": "index.html", "content": "...full file content..."},
-      {"filename": "style.css", "content": "..."},
-      {"filename": "script.js", "content": "..."}
+      {"filename": "personal-portfolio/index.html", "content": "...full file content..."},
+      {"filename": "personal-portfolio/style.css", "content": "..."},
+      {"filename": "personal-portfolio/script.js", "content": "..."}
     ]
   }
 - Create as many files as the website needs. For simple sites, one index.html with embedded CSS/JS is fine.
-- For complex sites, split into index.html + style.css + script.js (or more).
+- For complex sites, split into index.html + style.css + script.js (or more), all inside the project folder.
 - Always write complete, working, production-quality code.
 - Make the website look modern, mobile-responsive, and visually impressive.
 - When the user asks to update/change something, update only the relevant files and return ALL files (unchanged ones too).
@@ -424,20 +433,40 @@ def website_preview(project_id):
         index = files[0]
 
     html = index["content"]
+    index_folder = index["filename"].rsplit("/", 1)[0] if "/" in index["filename"] else ""
 
-    # Inline CSS and JS from separate files
-    css_file = next((f for f in files if f["filename"].endswith(".css")), None)
-    js_file = next((f for f in files if f["filename"].endswith(".js")), None)
+    # Build lookup: basename → content (handles folder-prefixed filenames)
+    file_map = {}
+    for f in files:
+        if f["filename"] == index["filename"]:
+            continue
+        basename = f["filename"].rsplit("/", 1)[-1]
+        file_map[basename] = f["content"]
+        # Also store full path as key for exact matches
+        file_map[f["filename"]] = f["content"]
 
-    if css_file and css_file["filename"] != index["filename"]:
-        css_tag = f'<link rel="stylesheet" href="{css_file["filename"]}">'
-        inline_css = f'<style>{css_file["content"]}</style>'
-        html = html.replace(css_tag, inline_css)
+    import re
 
-    if js_file and js_file["filename"] != index["filename"]:
-        js_tag = f'<script src="{js_file["filename"]}"></script>'
-        inline_js = f'<script>{js_file["content"]}</script>'
-        html = html.replace(js_tag, inline_js)
+    # Inline all <link rel="stylesheet" href="..."> tags
+    def replace_css(m):
+        href = m.group(1)
+        basename = href.rsplit("/", 1)[-1]
+        content = file_map.get(href) or file_map.get(basename)
+        if content:
+            return f'<style>{content}</style>'
+        return m.group(0)
+    html = re.sub(r'<link[^>]+rel=["\']stylesheet["\'][^>]+href=["\']([^"\']+)["\'][^>]*/?>', replace_css, html, flags=re.IGNORECASE)
+    html = re.sub(r'<link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\']stylesheet["\'][^>]*/?>', replace_css, html, flags=re.IGNORECASE)
+
+    # Inline all <script src="..."> tags
+    def replace_js(m):
+        src = m.group(1)
+        basename = src.rsplit("/", 1)[-1]
+        content = file_map.get(src) or file_map.get(basename)
+        if content:
+            return f'<script>{content}</script>'
+        return m.group(0)
+    html = re.sub(r'<script[^>]+src=["\']([^"\']+)["\'][^>]*></script>', replace_js, html, flags=re.IGNORECASE)
 
     return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 

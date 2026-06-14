@@ -317,6 +317,16 @@ html,body {
 .file-time { font-size:11px; color:var(--text2); }
 .file-empty { text-align:center; color:var(--text2); font-size:13.5px; padding:32px 0; line-height:1.6; }
 
+/* Folder grouping */
+.folder-header {
+  display:flex; align-items:center; gap:6px;
+  padding:10px 4px 4px;
+  font-size:11px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase;
+  color:var(--accent); opacity:0.8;
+}
+.folder-header:first-child { padding-top:2px; }
+.file-item--indented { margin-left:8px; border-left:2px solid var(--border2); border-radius:0 12px 12px 0; padding-left:14px; }
+
 /* File viewer */
 #file-viewer {
   display:none; flex-direction:column; gap:0;
@@ -344,7 +354,8 @@ html,body {
   flex:1; overflow:auto; padding:16px;
   font-family:'Courier New', Courier, monospace;
   font-size:12px; line-height:1.7;
-  color:#cdd6f4; white-space:pre; background:var(--bg);
+  color:#cdd6f4; white-space:pre-wrap; word-break:break-all;
+  background:var(--bg); tab-size:2;
 }
 #file-code::-webkit-scrollbar { display:none; }
 
@@ -760,29 +771,51 @@ function renderFileList(files) {
   const list = document.getElementById('file-list');
   const empty = document.getElementById('files-empty');
 
-  // Clear everything except the viewer
-  list.querySelectorAll('.file-item').forEach(el => el.remove());
+  // Clear everything except the viewer and empty state
+  list.querySelectorAll('.file-item, .folder-header').forEach(el => el.remove());
   if (empty) empty.style.display = files.length ? 'none' : 'block';
 
-  files.forEach(f => {
-    const ext = f.filename.split('.').pop().toLowerCase();
-    const iconClass = ['html','css','js'].includes(ext) ? ext : 'other';
-    const icons = {
-      html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef6444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
-      css:  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
-      js:   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
-      other:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#7c6dfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>'
-    };
+  const icons = {
+    html: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef6444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
+    css:  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
+    js:   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
+    other:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#7c6dfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>'
+  };
+  const folderIcon = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
 
-    const item = document.createElement('div');
-    item.className = 'file-item';
-    item.innerHTML = `
-      <div class="file-icon ${iconClass}">${icons[iconClass]}</div>
-      <div class="file-name">${escHtml(f.filename)}</div>
-      <div class="file-time">${f.updated_at ? f.updated_at.split(' ')[1] || '' : ''}</div>
-    `;
-    item.onclick = () => openFileViewer(f.filename);
-    list.appendChild(item);
+  // Group files by folder
+  const groups = {};
+  files.forEach(f => {
+    const parts = f.filename.split('/');
+    const folder = parts.length > 1 ? parts[0] : '';
+    if (!groups[folder]) groups[folder] = [];
+    groups[folder].push(f);
+  });
+
+  Object.entries(groups).forEach(([folder, groupFiles]) => {
+    // Folder header (only if there's a folder name)
+    if (folder) {
+      const header = document.createElement('div');
+      header.className = 'folder-header';
+      header.innerHTML = `${folderIcon}<span>${escHtml(folder)}</span>`;
+      list.appendChild(header);
+    }
+
+    groupFiles.forEach(f => {
+      const basename = f.filename.includes('/') ? f.filename.split('/').pop() : f.filename;
+      const ext = basename.split('.').pop().toLowerCase();
+      const iconClass = ['html','css','js'].includes(ext) ? ext : 'other';
+
+      const item = document.createElement('div');
+      item.className = 'file-item' + (folder ? ' file-item--indented' : '');
+      item.innerHTML = `
+        <div class="file-icon ${iconClass}">${icons[iconClass]}</div>
+        <div class="file-name">${escHtml(basename)}</div>
+        <div class="file-time">${f.updated_at ? f.updated_at.split(' ')[1] || '' : ''}</div>
+      `;
+      item.onclick = () => openFileViewer(f.filename);
+      list.appendChild(item);
+    });
   });
 }
 
