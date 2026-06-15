@@ -1094,6 +1094,20 @@
         </button>
       </div>
 
+      <!-- Install App -->
+      <div class="menu-group" id="installGroup" style="display:none">
+        <button class="d-item" id="installBtn" onclick="triggerInstall()">
+          <svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          Install Jarvis App
+        </button>
+        <div id="installBar" style="display:none;padding:0 16px 12px">
+          <div style="height:3px;background:var(--border);border-radius:99px;overflow:hidden">
+            <div id="installBarFill" style="height:100%;width:0%;background:var(--text);border-radius:99px;transition:width 0.4s ease"></div>
+          </div>
+          <p style="font-size:11px;color:var(--text-secondary);margin:6px 0 0">Preparing install…</p>
+        </div>
+      </div>
+
       <!-- Group 3: Dark mode toggle -->
       <div class="menu-group">
         <div class="d-toggle-row" onclick="toggleDark()">
@@ -2553,8 +2567,51 @@
 </script>
 
 <script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js");
+  // ── PWA Install ──
+  let _installPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _installPrompt = e;
+    const grp = document.getElementById('installGroup');
+    if (grp) grp.style.display = '';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    const grp = document.getElementById('installGroup');
+    if (grp) grp.style.display = 'none';
+  });
+
+  function triggerInstall() {
+    if (!_installPrompt) return;
+    const bar = document.getElementById('installBar');
+    const fill = document.getElementById('installBarFill');
+    const btn = document.getElementById('installBtn');
+    btn.disabled = true;
+    bar.style.display = 'block';
+    let w = 0;
+    const iv = setInterval(() => {
+      w = Math.min(w + 8, 85);
+      fill.style.width = w + '%';
+    }, 120);
+    _installPrompt.prompt();
+    _installPrompt.userChoice.then(result => {
+      clearInterval(iv);
+      fill.style.width = '100%';
+      setTimeout(() => {
+        bar.style.display = 'none';
+        btn.disabled = false;
+        fill.style.width = '0%';
+        if (result.outcome === 'accepted') {
+          document.getElementById('installGroup').style.display = 'none';
+        }
+      }, 600);
+      _installPrompt = null;
+    });
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
   }
 </script>
 </body>
