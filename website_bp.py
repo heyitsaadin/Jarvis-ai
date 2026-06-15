@@ -5,7 +5,7 @@ Register in app.py with:
     from website_bp import website_bp
     app.register_blueprint(website_bp)
 
-AI Backend: NVIDIA NIM — deepseek-ai/deepseek-v4-pro
+AI Backend: NVIDIA NIM — minimaxai/minimax-m3
 Uses SSE streaming to bypass Vercel's 10s serverless timeout.
 Checkpoints are emitted at each stage so the frontend can show progress.
 """
@@ -15,7 +15,6 @@ import json
 import re
 import io
 import zipfile
-import secrets
 from datetime import datetime, timezone, timedelta
 from flask import (
     Blueprint, render_template, request, session,
@@ -29,7 +28,7 @@ website_bp = Blueprint("website_bp", __name__)
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
-# ─── NVIDIA NIM client ──────────────────────────────────────────────────────
+# ─── NVIDIA NIM client ───────────────────────────────────────────────────────
 
 def _nvidia_client():
     return OpenAI(
@@ -37,7 +36,7 @@ def _nvidia_client():
         api_key=os.environ.get("NVIDIA_API_KEY", ""),
     )
 
-# ─── DB helpers ─────────────────────────────────────────────────────────────
+# ─── DB init ─────────────────────────────────────────────────────────────────
 
 def init_website_db():
     """Run safe migrations. Called once at import time."""
@@ -88,6 +87,8 @@ def init_website_db():
     cur.close()
     return_db(conn)
 
+
+# ─── DB helpers ──────────────────────────────────────────────────────────────
 
 def _get_project(project_id, username):
     from app import get_db, return_db
@@ -217,7 +218,7 @@ def _restore_version(version_id, project_id, username):
     return True
 
 
-# ─── System prompt ───────────────────────────────────────────────────────────
+# ─── System prompt ────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """You are an expert web developer AI inside a website builder called Mia AI.
 
@@ -252,20 +253,21 @@ Rules:
 - If the user sends a follow-up, look at the current_files context and build upon it."""
 
 
-# ─── SSE streaming generator ─────────────────────────────────────────────────
+# ─── SSE helper ──────────────────────────────────────────────────────────────
 
 def _sse(payload: dict) -> str:
     """Format a dict as an SSE data line."""
     return f"data: {json.dumps(payload)}\n\n"
 
 
-def _stream_deepseek(messages, current_files):
+# ─── Streaming generator ──────────────────────────────────────────────────────
+
+def _stream_minimax(messages, current_files):
     """
     Generator that yields SSE events:
       checkpoint  →  { checkpoint, label }
-      token       →  { token }           (raw streaming token, optional use)
+      token       →  { token, chars }
       done        →  { checkpoint:'done', result: {message, files} }
-      complete    →  { checkpoint:'complete', files, message }  (after DB save)
       error       →  { error }
     """
     api_key = os.environ.get("NVIDIA_API_KEY", "")
@@ -278,7 +280,6 @@ def _stream_deepseek(messages, current_files):
     if current_files:
         files_context = "\n\nCURRENT FILES IN PROJECT:\n"
         for f in current_files:
-            # Send full content so DeepSeek can edit correctly
             files_context += f"\n--- {f['filename']} ---\n{f['content']}\n"
 
     # ── Build message history for API ────────────────────────────────────────
@@ -286,23 +287,25 @@ def _stream_deepseek(messages, current_files):
     for i, m in enumerate(messages):
         role = "user" if m["sender"] == "You" else "assistant"
         content = m["text"]
-        # Inject file context into the last user message only
         if i == len(messages) - 1 and role == "user" and files_context:
             content = content + files_context
         api_messages.append({"role": role, "content": content})
 
     # ── Checkpoint 1: Starting ───────────────────────────────────────────────
-    yield _sse({"checkpoint": "thinking", "label": "🧠 DeepSeek is planning your website…"})
+    yield _sse({"checkpoint": "thinking", "label": "🧠 MiniMax is planning your website…"})
 
     try:
         client = _nvidia_client()
         stream = client.chat.completions.create(
-            model="deepseek-ai/deepseek-v4-pro",
+            model="minimaxai/minimax-m3",
             messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
-            max_tokens=16384,
+            max_tokens=8192,
             temperature=0.3,
             top_p=0.95,
             stream=True,
+            extra_body={
+                "chat_template_kwargs": {"thinking_mode": "disabled"}
+            }
         )
 
         full_text = ""
@@ -322,7 +325,6 @@ def _stream_deepseek(messages, current_files):
                 files_checkpoint_sent = True
                 yield _sse({"checkpoint": "writing", "label": "✍️ Writing your files…"})
 
-            # Stream raw token to frontend (frontend can show live char counter etc.)
             yield _sse({"token": delta, "chars": char_count})
 
         # ── Checkpoint 3: Parsing ────────────────────────────────────────────
@@ -335,13 +337,13 @@ def _stream_deepseek(messages, current_files):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw
             raw = raw.rsplit("```", 1)[0].strip()
 
-        # Handle case where model outputs json fence specifically
+        # Handle bare "json" prefix
         if raw.startswith("json"):
             raw = raw[4:].strip()
 
         parsed = json.loads(raw)
 
-        # ── Checkpoint 4: Parsed OK, hand back to route for DB save ─────────
+        # ── Checkpoint 4: Done ───────────────────────────────────────────────
         yield _sse({"checkpoint": "done", "result": parsed})
 
     except json.JSONDecodeError as e:
@@ -375,13 +377,13 @@ def website_editor(project_id):
 def website_send(project_id):
     """
     Streams the AI response back as SSE events.
-    The frontend should consume this with fetch + ReadableStream (not EventSource,
-    since this is a POST). Checkpoints:
+    Consume with fetch + ReadableStream on the frontend (not EventSource — this is POST).
+    Checkpoints emitted:
       thinking  → model started
       writing   → "files" key spotted in stream
-      parsing   → stream complete, parsing JSON
+      parsing   → stream done, parsing JSON
       done      → parsed OK (result payload included)
-      saving    → DB writes happening
+      saving    → DB writes in progress
       complete  → all done, updated file list included
     """
     if "user" not in session:
@@ -405,11 +407,10 @@ def website_send(project_id):
         result = None
         error = None
 
-        # ── Stream from DeepSeek ─────────────────────────────────────────────
-        for line in _stream_deepseek(messages, current_files):
+        # ── Stream from MiniMax ──────────────────────────────────────────────
+        for line in _stream_minimax(messages, current_files):
             yield line
 
-            # Parse each SSE line to capture the final result
             if line.startswith("data: "):
                 try:
                     payload = json.loads(line[6:])
@@ -459,7 +460,7 @@ def website_send(project_id):
         mimetype="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",   # prevent nginx/Vercel buffering
+            "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         }
     )
@@ -507,7 +508,7 @@ def website_preview(project_id):
         align-items:center;justify-content:center;height:100vh;margin:0;background:#0a0a0a;color:#666;">
         <p>No files yet. Start chatting to build your website!</p></body></html>"""
 
-    # Find index.html (prefer root-level, then folder-level)
+    # Find index.html
     index = next((f for f in files if f["filename"] == "index.html"), None)
     if not index:
         index = next((f for f in files if f["filename"].endswith("/index.html")), None)
