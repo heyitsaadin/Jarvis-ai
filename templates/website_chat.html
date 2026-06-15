@@ -475,7 +475,7 @@ html,body {
       <textarea
         id="chat-input"
         rows="1"
-        placeholder="Describe your website…"
+        placeholder="Describe your website… (use @groq for Groq)"
         maxlength="2000"
       ></textarea>
       <button id="send-btn" onclick="sendMessage()" disabled>
@@ -631,6 +631,10 @@ async function sendMessage() {
   const msg = input.value.trim();
   if (!msg || isSending) return;
 
+  // Detect @groq prefix
+  const useGroq = msg.toLowerCase().startsWith('@groq ');
+  const displayMsg = useGroq ? msg.slice(6).trim() : msg;
+
   isSending = true;
   sendBtn.disabled = true;
   input.value = '';
@@ -639,8 +643,8 @@ async function sendMessage() {
   // Hide empty state
   document.getElementById('empty-state').style.display = 'none';
 
-  // Add user bubble
-  appendBubble('You', msg, 'user');
+  // Add user bubble (with optional Groq badge)
+  appendBubble('You', displayMsg, 'user', useGroq ? 'groq' : null);
   scrollBottom();
 
   // Show typing
@@ -693,14 +697,19 @@ async function sendMessage() {
   scrollBottom();
 }
 
-function appendBubble(sender, text, cls) {
+function appendBubble(sender, text, cls, badge) {
   const stream = document.getElementById('chat-stream');
   const row = document.createElement('div');
   row.className = `msg-row ${cls}`;
 
   const label = document.createElement('div');
   label.className = 'msg-label';
-  label.textContent = sender;
+  // Show badge inline with label for user messages
+  if (badge === 'groq') {
+    label.innerHTML = `${sender} <span style="display:inline-block;background:linear-gradient(135deg,#f55036,#f97316);color:#fff;font-size:9px;font-weight:800;letter-spacing:0.04em;border-radius:5px;padding:1px 5px;vertical-align:middle;margin-left:4px;">⚡ GROQ</span>`;
+  } else {
+    label.textContent = sender;
+  }
 
   const textEl = document.createElement('div');
   textEl.className = 'msg-text';

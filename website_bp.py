@@ -36,6 +36,15 @@ def _nvidia_client():
         api_key=os.environ.get("NVIDIA_API_KEY", ""),
     )
 
+
+# ─── Groq client ─────────────────────────────────────────────────────────────
+
+def _groq_client():
+    return OpenAI(
+        base_url="https://api.groq.com/openai/v1",
+        api_key=os.environ.get("GROQ_API_KEY", ""),
+    )
+
 # ─── DB init ─────────────────────────────────────────────────────────────────
 
 def init_website_db():
@@ -352,6 +361,87 @@ def _stream_minimax(messages, current_files):
         yield _sse({"error": str(e)})
 
 
+# ─── Groq streaming generator ────────────────────────────────────────────────
+
+def _stream_groq(messages, current_files):
+    """
+    Same SSE contract as _stream_minimax but routes to Groq (llama-3.3-70b-versatile).
+    """
+    api_key = os.environ.get("GROQ_API_KEY", "")
+    if not api_key:
+        yield _sse({"error": "GROQ_API_KEY not set in environment."})
+        return
+
+    # ── Build files context ──────────────────────────────────────────────────
+    files_context = ""
+    if current_files:
+        files_context = "\n\nCURRENT FILES IN PROJECT:\n"
+        for f in current_files:
+            files_context += f"\n--- {f['filename']} ---\n{f['content']}\n"
+
+    # ── Build message history for API ────────────────────────────────────────
+    api_messages = []
+    for i, m in enumerate(messages):
+        role = "user" if m["sender"] == "You" else "assistant"
+        content = m["text"]
+        if i == len(messages) - 1 and role == "user" and files_context:
+            content = content + files_context
+        api_messages.append({"role": role, "content": content})
+
+    # ── Checkpoint 1: Starting ───────────────────────────────────────────────
+    yield _sse({"checkpoint": "thinking", "label": "⚡ Groq is planning your website…"})
+
+    try:
+        client = _groq_client()
+        stream = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
+            max_tokens=8192,
+            temperature=0.3,
+            top_p=0.95,
+            stream=True,
+        )
+
+        full_text = ""
+        files_checkpoint_sent = False
+        char_count = 0
+
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content or ""
+            if not delta:
+                continue
+
+            full_text += delta
+            char_count += len(delta)
+
+            if not files_checkpoint_sent and '"files"' in full_text:
+                files_checkpoint_sent = True
+                yield _sse({"checkpoint": "writing", "label": "✍️ Writing your files…"})
+
+            yield _sse({"token": delta, "chars": char_count})
+
+        # ── Checkpoint 3: Parsing ────────────────────────────────────────────
+        yield _sse({"checkpoint": "parsing", "label": "⚙️ Processing response…"})
+
+        raw = full_text.strip()
+
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1] if "\n" in raw else raw
+            raw = raw.rsplit("```", 1)[0].strip()
+
+        if raw.startswith("json"):
+            raw = raw[4:].strip()
+
+        parsed = json.loads(raw)
+
+        yield _sse({"checkpoint": "done", "result": parsed})
+
+    except json.JSONDecodeError as e:
+        yield _sse({"error": f"AI returned invalid JSON: {str(e)}. Raw length: {len(full_text)} chars."})
+    except Exception as e:
+        yield _sse({"error": str(e)})
+
+
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
 @website_bp.route("/project/website/<int:project_id>")
@@ -395,20 +485,26 @@ def website_send(project_id):
         return jsonify({"error": "Project not found"}), 404
 
     data = request.get_json(silent=True) or {}
-    user_msg = data.get("message", "").strip()
-    if not user_msg:
+    raw_msg = data.get("message", "").strip()
+    if not raw_msg:
         return jsonify({"error": "empty"}), 400
+
+    # ── Detect @groq prefix ───────────────────────────────────────────────────
+    use_groq = raw_msg.lower().startswith("@groq ")
+    user_msg = raw_msg[6:].strip() if use_groq else raw_msg
 
     messages = _get_chat(project_id, username)
     current_files = _get_files(project_id, username)
+    # Store the clean message (without @groq prefix) in chat history
     messages.append({"sender": "You", "text": user_msg})
 
     def generate():
         result = None
         error = None
 
-        # ── Stream from MiniMax ──────────────────────────────────────────────
-        for line in _stream_minimax(messages, current_files):
+        # ── Stream from chosen backend ───────────────────────────────────────
+        stream_fn = _stream_groq if use_groq else _stream_minimax
+        for line in stream_fn(messages, current_files):
             yield line
 
             if line.startswith("data: "):
