@@ -303,6 +303,7 @@ def _stream_minimax(messages, current_files):
     # ── Checkpoint 1: Starting ───────────────────────────────────────────────
     yield _sse({"checkpoint": "thinking", "label": "🧠 MiniMax is planning your website…"})
 
+    full_text = ""
     try:
         client = _nvidia_client()
         stream = client.chat.completions.create(
@@ -317,7 +318,6 @@ def _stream_minimax(messages, current_files):
             }
         )
 
-        full_text = ""
         files_checkpoint_sent = False
         char_count = 0
 
@@ -391,6 +391,7 @@ def _stream_groq(messages, current_files):
     # ── Checkpoint 1: Starting ───────────────────────────────────────────────
     yield _sse({"checkpoint": "thinking", "label": "⚡ Groq is planning your website…"})
 
+    full_text = ""
     try:
         client = _groq_client()
         stream = client.chat.completions.create(
@@ -402,7 +403,6 @@ def _stream_groq(messages, current_files):
             stream=True,
         )
 
-        full_text = ""
         files_checkpoint_sent = False
         char_count = 0
 

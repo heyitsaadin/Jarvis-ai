@@ -661,23 +661,71 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: msg })
     });
-    const data = await res.json();
+
+    // ── Read SSE stream line by line ─────────────────────────────────────────
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalData = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep incomplete last line
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        let payload;
+        try { payload = JSON.parse(line.slice(6)); } catch { continue; }
+
+        // Checkpoint labels → update typing indicator text
+        if (payload.checkpoint && payload.label) {
+          const dotsEl = document.querySelector('.typing-dots');
+          if (dotsEl) {
+            dotsEl.setAttribute('title', payload.label);
+            // Show label next to dots
+            let labelEl = document.getElementById('typing-label');
+            if (!labelEl) {
+              labelEl = document.createElement('div');
+              labelEl.id = 'typing-label';
+              labelEl.style.cssText = 'font-size:11px;color:var(--text2);margin-top:4px;';
+              dotsEl.parentElement.appendChild(labelEl);
+            }
+            labelEl.textContent = payload.label;
+          }
+        }
+
+        // Final complete payload — capture it
+        if (payload.checkpoint === 'complete') {
+          finalData = payload;
+        }
+      }
+    }
+
+    // Remove typing label if added
+    const lbl = document.getElementById('typing-label');
+    if (lbl) lbl.remove();
 
     document.getElementById('typing').style.display = 'none';
 
-    if (data.error && !data.message) {
-      appendBubble('Jarvis', data.error || 'Something went wrong.', 'ai');
+    if (!finalData) {
+      appendBubble('Jarvis', 'No response received. Please try again.', 'ai');
+    } else if (finalData.error && !finalData.message) {
+      appendBubble('Jarvis', finalData.error || 'Something went wrong.', 'ai');
     } else {
-      appendBubble('Jarvis', data.message || 'Done!', 'ai');
+      appendBubble('Jarvis', finalData.message || 'Done!', 'ai');
 
-      if (data.files && data.files.length > 0) {
-        currentFiles = data.files;
+      if (finalData.files && finalData.files.length > 0) {
+        currentFiles = finalData.files;
         renderFileList(currentFiles);
         updateFilesBadge(currentFiles.length);
 
         // Show update banner
         document.getElementById('file-update-text').textContent =
-          `${data.files.length} file${data.files.length !== 1 ? 's' : ''} generated`;
+          `${finalData.files.length} file${finalData.files.length !== 1 ? 's' : ''} generated`;
         banner.classList.add('show');
         setTimeout(() => banner.classList.remove('show'), 5000);
 
@@ -689,6 +737,8 @@ async function sendMessage() {
     }
   } catch(e) {
     document.getElementById('typing').style.display = 'none';
+    const lbl = document.getElementById('typing-label');
+    if (lbl) lbl.remove();
     appendBubble('Jarvis', 'Connection error. Please try again.', 'ai');
   }
 
