@@ -1,8 +1,8 @@
 {
-  "name": "Jarvis Admin",
-  "short_name": "J·Admin",
-  "description": "Jarvis AI admin control panel",
-  "start_url": "/admin",
+  "name": "Jarvis AI",
+  "short_name": "Jarvis",
+  "description": "Your personal AI assistant",
+  "start_url": "/login",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

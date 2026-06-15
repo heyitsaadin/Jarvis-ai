@@ -3072,7 +3072,7 @@ def server_error(e):
 def test500():
     raise Exception("test")
 
-@app.route('/static/sw.js')
+@app.route('/sw.js')
 def service_worker():
     response = send_from_directory('static', 'sw.js')
     response.headers['Service-Worker-Allowed'] = '/'
