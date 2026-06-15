@@ -1001,6 +1001,7 @@ def wikipedia_search(query):
                 "srlimit": 4,
                 "srprop": "snippet"
             },
+            headers={"User-Agent": "JarvisAI/1.0 (personal assistant bot)"},
             timeout=10
         )
         items = search_resp.json().get("query", {}).get("search", [])
@@ -1429,7 +1430,6 @@ def _build_reply(user_msg):
         if result:
             return result
         return "Couldn't find results for that. Try rephrasing."
-        return "❌ Google search returned no results for that. Try a different query."
 
     if is_asking_time(user_msg):
         return "🕐 It's " + datetime.now(IST).strftime("%I:%M %p") + " IST right now!"
@@ -3012,9 +3012,17 @@ def sf_generate():
             timeout=60
         )
         resp.raise_for_status()
+        # Detect actual format — FLUX.1 returns PNG, not JPEG
+        content_type = resp.headers.get("Content-Type", "")
+        if "jpeg" in content_type or "jpg" in content_type:
+            mime = "image/jpeg"
+            ext  = "jpeg"
+        else:
+            mime = "image/png"
+            ext  = "png"
         img_b64 = _b64.b64encode(resp.content).decode("utf-8")
-        image_url = f"data:image/jpeg;base64,{img_b64}"
-        return jsonify({"image_url": image_url})
+        image_url = f"data:{mime};base64,{img_b64}"
+        return jsonify({"image_url": image_url, "ext": ext})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
