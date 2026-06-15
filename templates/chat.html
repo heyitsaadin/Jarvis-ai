@@ -337,7 +337,7 @@
         }
         .jarvis-img-wrap {
             display: block;
-            max-width: min(260px, 100%);
+            max-width: min(320px, 100%);
             width: fit-content;
             background: var(--ui-subtle);
             border-radius: 16px;
@@ -531,17 +531,22 @@
         }
         .sidebar-close:hover { background: var(--ui-subtle); transform: rotate(90deg); }
 
-        /* d-items in sidebar (old style, new colors) */
+        /* d-items in sidebar — card style like phone settings */
         .d-item {
             display: flex; align-items: center; gap: 12px;
-            padding: 11px 10px; border-radius: 10px;
+            padding: 13px 14px; border-radius: 14px;
             font-size: 14px; color: var(--text-primary);
             text-decoration: none; cursor: pointer;
-            border: none; background: none; width: 100%; text-align: left;
-            transition: background .15s;
+            border: none;
+            background: var(--ui-subtle);
+            width: 100%; text-align: left;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 6px;
+            border: 1px solid rgba(0,0,0,.04);
         }
-        .d-item:hover { background: var(--ui-subtle); transform: translateX(5px); }
-        .d-item { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        [data-theme="dark"] .d-item { border-color: rgba(255,255,255,.05); }
+        .d-item:hover { background: var(--light); transform: scale(1.01); box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+        .d-item:active { transform: scale(0.98); }
         .d-icon { width: 18px; height: 18px; flex-shrink: 0; stroke: var(--text-secondary); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
         .chat-btn, .send-btn, .action-btn, .icon-btn, .msg-action-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
         .chat-btn:active, .send-btn:active, .action-btn:active, .icon-btn:active, .msg-action-btn:active { transform: scale(0.92); }
@@ -549,16 +554,20 @@
         .message-row:hover { transform: translateX(2px); }
         .d-item.new-chat { font-weight: 600; }
         .d-item.new-chat .d-icon { stroke: var(--text-primary); }
-        .d-divider { border: none; border-top: 1px solid var(--ui-subtle); margin: 5px 0; }
+        /* Hide dividers — cards have their own spacing now */
+        .d-divider { border: none; border-top: none; margin: 2px 0; }
 
-        /* dark toggle inside sidebar */
+        /* dark toggle inside sidebar — card style */
         .d-toggle-row {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 11px 10px; border-radius: 10px;
+            padding: 13px 14px; border-radius: 14px;
             font-size: 14px; color: var(--text-primary);
-            cursor: pointer; transition: background .15s;
+            cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--ui-subtle); margin-bottom: 6px;
+            border: 1px solid rgba(0,0,0,.04);
         }
-        .d-toggle-row:hover { background: var(--ui-subtle); }
+        [data-theme="dark"] .d-toggle-row { border-color: rgba(255,255,255,.05); }
+        .d-toggle-row:hover { background: var(--light); box-shadow: 0 2px 10px rgba(0,0,0,.07); }
         .d-toggle-left { display: flex; align-items: center; gap: 12px; }
         .toggle-pill {
             width: 36px; height: 20px; border-radius: 10px;
@@ -2128,10 +2137,12 @@
         const row = document.createElement('div');
         row.className = 'message-row ' + (msg.sender === 'You' ? 'user' : 'ai');
 
-        const label = document.createElement('div');
-        label.className = 'meta-label';
-        label.textContent = msg.sender === 'You' ? 'You' : 'Jarvis';
-        row.appendChild(label);
+        if (msg.sender !== 'You') {
+            const label = document.createElement('div');
+            label.className = 'meta-label';
+            label.textContent = 'Jarvis';
+            row.appendChild(label);
+        }
 
         const text = document.createElement('div');
         text.className = 'message-text';
@@ -3231,15 +3242,12 @@
 
             const imgBubble = document.createElement('div');
             imgBubble.className = 'message-row user msg-enter';
-            const labelEl = document.createElement('div');
-            labelEl.className = 'meta-label'; labelEl.textContent = 'You';
             const textEl = document.createElement('div');
             textEl.className = 'message-text';
             let imgHTML = '<img src="' + thumbSrc + '" style="max-width:160px;border-radius:10px;display:block;' + (caption ? 'margin-bottom:6px' : '') + '">';
             if (file2) imgHTML += '<img src="' + URL.createObjectURL(file2) + '" style="max-width:160px;border-radius:10px;display:block;' + (caption ? 'margin-bottom:6px' : '') + '">';
             if (caption) imgHTML += '<span style="display:block;">' + caption + '</span>';
             textEl.innerHTML = imgHTML;
-            imgBubble.appendChild(labelEl);
             imgBubble.appendChild(textEl);
             stream.appendChild(imgBubble);
 
