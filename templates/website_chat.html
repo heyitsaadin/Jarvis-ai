@@ -756,6 +756,17 @@ async function sendMessage() {
     }
     // (if finalData was set, UI was already updated inside the loop)
 
+  } catch(e) {
+    document.getElementById('typing').style.display = 'none';
+    const lbl2 = document.getElementById('typing-label');
+    if (lbl2) lbl2.remove();
+    appendBubble('Jarvis', 'Connection error. Please try again.', 'ai');
+    isSending = false;
+    sendBtn.disabled = !input.value.trim();
+    scrollBottom();
+  }
+}
+
 function appendBubble(sender, text, cls, badge) {
   const stream = document.getElementById('chat-stream');
   const row = document.createElement('div');
