@@ -9,3 +9,4 @@ Pillow==10.3.0
 flask-limiter==3.7.0
 groq
 openai>=1.0.0
+gunicorn
