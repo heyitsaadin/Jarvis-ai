@@ -519,6 +519,9 @@ def website_send(project_id):
 
         # ── Checkpoint 5: Saving to DB ───────────────────────────────────────
         yield _sse({"checkpoint": "saving", "label": "💾 Saving files to database…"})
+        # Explicit flush hint — yield a keep-alive so the client receives the
+        # saving checkpoint before we block on DB writes
+        yield _sse({"checkpoint": "keepalive"})
 
         if result:
             ai_message = result.get("message", "Done! Here's what I built.")
@@ -550,6 +553,8 @@ def website_send(project_id):
             "files": updated_files,
             "error": error,
         })
+        # Final newline to ensure the client's reader flushes the last event
+        yield "\n"
 
     return Response(
         stream_with_context(generate()),
@@ -702,6 +707,93 @@ def website_download(project_id):
 
 
 # ─── Run migration at import ──────────────────────────────────────────────────
+
+# ─── Live Dev Server routes ───────────────────────────────────────────────────
+# Serves the project at /dev/<project_id>/ so users can open it in a real
+# browser tab (or point localhost/<path> at it) without an iframe.
+# Sub-file requests (style.css, script.js, images) are served individually
+# so relative links just work — no inlining needed.
+
+@website_bp.route("/dev/<int:project_id>/")
+@website_bp.route("/dev/<int:project_id>")
+def website_dev_index(project_id):
+    """Serve index.html for the live dev preview."""
+    if "user" not in session:
+        return "Unauthorized — please log in first.", 401
+    username = session["user"]
+    project = _get_project(project_id, username)
+    if not project:
+        return "Project not found.", 404
+
+    files = _get_files(project_id, username)
+    if not files:
+        return (
+            "<!DOCTYPE html><html><body style='font-family:sans-serif;"
+            "display:flex;align-items:center;justify-content:center;"
+            "height:100vh;margin:0;background:#0a0a0a;color:#666;'>"
+            "<p>No files yet — go back and start chatting!</p></body></html>",
+            200,
+            {"Content-Type": "text/html; charset=utf-8"},
+        )
+
+    index = (
+        next((f for f in files if f["filename"] == "index.html"), None)
+        or next((f for f in files if f["filename"].endswith("/index.html")), None)
+        or files[0]
+    )
+
+    # Rewrite asset links to point at /dev/<id>/<filename>
+    html = index["content"]
+    folder = index["filename"].rsplit("/", 1)[0] if "/" in index["filename"] else ""
+
+    def rewrite_href(m):
+        href = m.group(1)
+        if href.startswith(("http", "//", "data:")):
+            return m.group(0)
+        # Strip any folder prefix the template may already have
+        bare = href.rsplit("/", 1)[-1]
+        return m.group(0).replace(href, f"/dev/{project_id}/{bare}")
+
+    html = re.sub(r'href=["\']([^"\']+)["\']', rewrite_href, html)
+    html = re.sub(r'src=["\']([^"\']+)["\']', rewrite_href, html)
+
+    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@website_bp.route("/dev/<int:project_id>/<path:asset>")
+def website_dev_asset(project_id, asset):
+    """Serve a specific project file (CSS, JS, images, etc.)."""
+    if "user" not in session:
+        return "Unauthorized", 401
+    username = session["user"]
+
+    files = _get_files(project_id, username)
+    # Match by basename or full path
+    match = next(
+        (f for f in files if f["filename"] == asset
+         or f["filename"].rsplit("/", 1)[-1] == asset),
+        None
+    )
+    if not match:
+        return f"File not found: {asset}", 404
+
+    ext = asset.rsplit(".", 1)[-1].lower() if "." in asset else ""
+    mime_map = {
+        "css":  "text/css",
+        "js":   "application/javascript",
+        "html": "text/html",
+        "json": "application/json",
+        "svg":  "image/svg+xml",
+        "png":  "image/png",
+        "jpg":  "image/jpeg",
+        "jpeg": "image/jpeg",
+        "ico":  "image/x-icon",
+        "woff": "font/woff",
+        "woff2":"font/woff2",
+    }
+    mime = mime_map.get(ext, "text/plain")
+    return match["content"], 200, {"Content-Type": f"{mime}; charset=utf-8"}
+
 
 try:
     init_website_db()

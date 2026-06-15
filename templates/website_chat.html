@@ -424,6 +424,9 @@ html,body {
     <a id="dl-btn" href="/project/website/{{ project.id }}/download" aria-label="Download">
       <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     </a>
+    <a id="dev-btn" href="/dev/{{ project.id }}/" target="_blank" aria-label="Open live preview" title="Open in new tab (live dev server)" style="display:{% if files %}flex{% else %}none{% endif %}">
+      <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+    </a>
   </div>
 
   <!-- CHAT STREAM -->
@@ -681,71 +684,77 @@ async function sendMessage() {
         let payload;
         try { payload = JSON.parse(line.slice(6)); } catch { continue; }
 
+        // Ignore keepalive pings
+        if (payload.checkpoint === 'keepalive') continue;
+
         // Checkpoint labels → update typing indicator text
         if (payload.checkpoint && payload.label) {
-          const dotsEl = document.querySelector('.typing-dots');
-          if (dotsEl) {
-            dotsEl.setAttribute('title', payload.label);
-            // Show label next to dots
-            let labelEl = document.getElementById('typing-label');
-            if (!labelEl) {
-              labelEl = document.createElement('div');
-              labelEl.id = 'typing-label';
-              labelEl.style.cssText = 'font-size:11px;color:var(--text2);margin-top:4px;';
-              dotsEl.parentElement.appendChild(labelEl);
-            }
-            labelEl.textContent = payload.label;
+          let labelEl = document.getElementById('typing-label');
+          if (!labelEl) {
+            labelEl = document.createElement('div');
+            labelEl.id = 'typing-label';
+            labelEl.style.cssText = 'font-size:11px;color:var(--text2);margin-top:4px;';
+            document.querySelector('.typing-dots').parentElement.appendChild(labelEl);
           }
+          labelEl.textContent = payload.label;
         }
 
-        // Final complete payload — capture it
+        // Act on complete immediately — don't wait for stream close
         if (payload.checkpoint === 'complete') {
           finalData = payload;
+
+          // Remove typing label
+          const lbl = document.getElementById('typing-label');
+          if (lbl) lbl.remove();
+          document.getElementById('typing').style.display = 'none';
+
+          if (finalData.error && !finalData.message) {
+            appendBubble('Jarvis', finalData.error || 'Something went wrong.', 'ai');
+          } else {
+            appendBubble('Jarvis', finalData.message || 'Done!', 'ai');
+
+            if (finalData.files && finalData.files.length > 0) {
+              currentFiles = finalData.files;
+              renderFileList(currentFiles);
+              updateFilesBadge(currentFiles.length);
+
+              // Show dev button once files exist
+              document.getElementById('dev-btn').style.display = 'flex';
+
+              document.getElementById('file-update-text').textContent =
+                `${finalData.files.length} file${finalData.files.length !== 1 ? 's' : ''} generated`;
+              banner.classList.add('show');
+              setTimeout(() => banner.classList.remove('show'), 5000);
+
+              if (document.getElementById('preview-frame').style.display !== 'none') {
+                reloadPreview();
+              }
+            }
+          }
+
+          isSending = false;
+          sendBtn.disabled = !input.value.trim();
+          scrollBottom();
+
+          // Cancel the reader — we have everything we need
+          reader.cancel();
+          return;
         }
       }
     }
 
-    // Remove typing label if added
+    // Remove typing label if added (fallback if stream ended without complete)
     const lbl = document.getElementById('typing-label');
     if (lbl) lbl.remove();
-
     document.getElementById('typing').style.display = 'none';
 
     if (!finalData) {
       appendBubble('Jarvis', 'No response received. Please try again.', 'ai');
-    } else if (finalData.error && !finalData.message) {
-      appendBubble('Jarvis', finalData.error || 'Something went wrong.', 'ai');
-    } else {
-      appendBubble('Jarvis', finalData.message || 'Done!', 'ai');
-
-      if (finalData.files && finalData.files.length > 0) {
-        currentFiles = finalData.files;
-        renderFileList(currentFiles);
-        updateFilesBadge(currentFiles.length);
-
-        // Show update banner
-        document.getElementById('file-update-text').textContent =
-          `${finalData.files.length} file${finalData.files.length !== 1 ? 's' : ''} generated`;
-        banner.classList.add('show');
-        setTimeout(() => banner.classList.remove('show'), 5000);
-
-        // Reload preview if it's been opened
-        if (document.getElementById('preview-frame').style.display !== 'none') {
-          reloadPreview();
-        }
-      }
+      isSending = false;
+      sendBtn.disabled = !input.value.trim();
+      scrollBottom();
     }
-  } catch(e) {
-    document.getElementById('typing').style.display = 'none';
-    const lbl = document.getElementById('typing-label');
-    if (lbl) lbl.remove();
-    appendBubble('Jarvis', 'Connection error. Please try again.', 'ai');
-  }
-
-  isSending = false;
-  sendBtn.disabled = !input.value.trim();
-  scrollBottom();
-}
+    // (if finalData was set, UI was already updated inside the loop)
 
 function appendBubble(sender, text, cls, badge) {
   const stream = document.getElementById('chat-stream');
