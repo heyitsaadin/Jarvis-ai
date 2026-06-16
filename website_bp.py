@@ -436,6 +436,152 @@ def website_send(project_id):
         "error": error,
     }), 200
 
+@website_bp.route("/project/website/<int:project_id>/send-stream", methods=["POST"])
+def website_send_stream(project_id):
+    """
+    SSE streaming endpoint.
+    Streams raw JSON token-by-token from the AI so the frontend can
+    render code live.  On completion sends a final 'done' event with
+    { message, files, error } so the frontend can update the file list.
+    """
+    if "user" not in session:
+        return jsonify({"error": "not_logged_in"}), 401
+
+    username = session["user"]
+    project = _get_project(project_id, username)
+    if not project:
+        return jsonify({"error": "Project not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    raw_msg = data.get("message", "").strip()
+    if not raw_msg:
+        return jsonify({"error": "empty"}), 400
+
+    use_groq = raw_msg.lower().startswith("@groq ")
+    user_msg = raw_msg[6:].strip() if use_groq else raw_msg
+
+    messages = _get_chat(project_id, username)
+    current_files = _get_files(project_id, username)
+    messages.append({"sender": "You", "text": user_msg})
+
+    # Build API messages list
+    files_context = ""
+    if current_files:
+        files_context = "\n\nCURRENT FILES IN PROJECT:\n"
+        for f in current_files:
+            files_context += f"\n--- {f['filename']} ---\n{f['content']}\n"
+
+    api_messages = []
+    for i, m in enumerate(messages):
+        role = "user" if m["sender"] == "You" else "assistant"
+        content = m["text"]
+        if i == len(messages) - 1 and role == "user" and files_context:
+            content = content + files_context
+        api_messages.append({"role": role, "content": content})
+
+    def generate():
+        accumulated = ""
+        error = None
+
+        try:
+            if use_groq:
+                api_key = os.environ.get("GROQ_API_KEY", "")
+                if not api_key:
+                    yield f"event: error\ndata: {json.dumps({'error': 'GROQ_API_KEY not set'})}\n\n"
+                    return
+                client = _groq_client()
+                stream = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
+                    max_tokens=8192,
+                    temperature=0.3,
+                    top_p=0.95,
+                    stream=True,
+                )
+            else:
+                api_key = os.environ.get("NVIDIA_API_KEY", "")
+                if not api_key:
+                    yield f"event: error\ndata: {json.dumps({'error': 'NVIDIA_API_KEY not set'})}\n\n"
+                    return
+                client = _nvidia_client()
+                stream = client.chat.completions.create(
+                    model="deepseek-ai/deepseek-v4-flash",
+                    messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
+                    max_tokens=16384,
+                    temperature=1,
+                    top_p=0.95,
+                    stream=True,
+                )
+
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content if chunk.choices else None
+                if delta:
+                    accumulated += delta
+                    # Escape the chunk for SSE (newlines must be encoded)
+                    payload = json.dumps({"chunk": delta})
+                    yield f"data: {payload}\n\n"
+
+        except Exception as e:
+            error = str(e)
+            yield f"event: error\ndata: {json.dumps({'error': error})}\n\n"
+            return
+
+        # ── Parse + save ──────────────────────────────────────────
+        result = None
+        parse_error = None
+        try:
+            raw = accumulated.strip()
+            if raw.startswith("```"):
+                raw = raw.split("\n", 1)[1] if "\n" in raw else raw
+                raw = raw.rsplit("```", 1)[0].strip()
+            if raw.startswith("json"):
+                raw = raw[4:].strip()
+            result = json.loads(raw)
+        except json.JSONDecodeError as e:
+            parse_error = f"AI returned invalid JSON: {str(e)}"
+
+        if result:
+            ai_message = result.get("message", "Done!")
+            new_files = result.get("files", [])
+            for f in new_files:
+                fname = f.get("filename", "").strip()
+                fcontent = f.get("content", "")
+                if fname and fcontent:
+                    _save_file(project_id, username, fname, fcontent)
+            if new_files:
+                all_files = _get_files(project_id, username)
+                _save_version(project_id, username, all_files)
+            messages.append({"sender": "Mia", "text": ai_message})
+            _save_chat(project_id, username, messages)
+            updated_files = _get_files(project_id, username)
+            done_payload = json.dumps({
+                "message": ai_message,
+                "files": updated_files,
+                "error": None,
+            })
+        else:
+            err_text = parse_error or "Something went wrong."
+            ai_message = f"Sorry, something went wrong: {err_text}"
+            messages.append({"sender": "Mia", "text": ai_message})
+            _save_chat(project_id, username, messages)
+            done_payload = json.dumps({
+                "message": ai_message,
+                "files": [],
+                "error": err_text,
+            })
+
+        yield f"event: done\ndata: {done_payload}\n\n"
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
 @website_bp.route("/project/website/<int:project_id>/files")
 def website_files(project_id):
     if "user" not in session:

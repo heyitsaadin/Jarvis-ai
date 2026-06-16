@@ -582,6 +582,180 @@ function useChip(el) {
   input.focus();
 }
 
+// ── Live streaming helpers ──────────────────────────────────────
+
+// Tracks the live-writing state across SSE chunks
+const liveState = {
+  accumulated: '',       // full raw JSON so far
+  codeContainer: null,   // the div holding live-code-block elements
+  blocks: {},            // filename → { bodyEl, fullText, truncated }
+  currentFile: null,     // filename currently being written into
+  inContent: false,      // are we inside a "content": "..." value?
+  escapeNext: false,     // was last char a backslash?
+  stream: null,          // reference to #chat-stream
+};
+
+function _liveReset() {
+  Object.assign(liveState, {
+    accumulated: '',
+    codeContainer: null,
+    blocks: {},
+    currentFile: null,
+    inContent: false,
+    escapeNext: false,
+    stream: null,
+  });
+}
+
+// Called with every SSE chunk's delta text
+function _liveIngest(delta) {
+  liveState.accumulated += delta;
+
+  // ── Detect which filename we're writing into ──
+  // We look for "filename": "<name>" patterns in accumulated so far
+  const fnameMatches = [...liveState.accumulated.matchAll(/"filename"\s*:\s*"([^"]+)"/g)];
+  if (fnameMatches.length) {
+    const latestFile = fnameMatches[fnameMatches.length - 1][1];
+    if (latestFile !== liveState.currentFile) {
+      liveState.currentFile = latestFile;
+      liveState.inContent = false;
+      // Ensure a block exists for this file
+      _ensureBlock(latestFile);
+    }
+  }
+
+  // ── Detect entry into "content": " value ──
+  if (!liveState.inContent && liveState.currentFile) {
+    // Look for "content": " after the last filename occurrence
+    const lastFnameIdx = liveState.accumulated.lastIndexOf(`"${liveState.currentFile}"`);
+    const afterFilename = liveState.accumulated.slice(lastFnameIdx);
+    const contentMatch = afterFilename.match(/"content"\s*:\s*"/);
+    if (contentMatch) {
+      liveState.inContent = true;
+      // Trim accumulated to just after the opening quote of content
+      const startIdx = liveState.accumulated.lastIndexOf(`"${liveState.currentFile}"`) +
+                       afterFilename.indexOf('"content"') +
+                       contentMatch[0].length;
+      // We'll parse char-by-char from here — handled by _flushContent
+    }
+  }
+
+  if (liveState.inContent && liveState.currentFile) {
+    _flushContent();
+  }
+}
+
+function _ensureBlock(filename) {
+  if (liveState.blocks[filename]) return;
+  if (!liveState.codeContainer) return;
+
+  const ext = filename.split('.').pop().toLowerCase();
+  const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
+
+  const blockEl = document.createElement('div');
+  blockEl.className = 'live-code-block';
+  blockEl.innerHTML = `
+    <div class="live-code-header">
+      <span class="live-code-lang">${escHtml(langLabel)}</span>
+      <span class="live-code-filename">${escHtml(filename)}</span>
+      <button class="live-code-copy" onclick="copyLiveCode(this)">
+        <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy
+      </button>
+    </div>
+    <div class="live-code-body"></div>
+  `;
+  liveState.codeContainer.appendChild(blockEl);
+  liveState.blocks[filename] = {
+    bodyEl: blockEl.querySelector('.live-code-body'),
+    fullText: '',
+    truncated: false,
+  };
+}
+
+// Parse and render content chars from accumulated buffer
+function _flushContent() {
+  const file = liveState.currentFile;
+  const block = liveState.blocks[file];
+  if (!block) return;
+
+  // Find the start of this file's content value in accumulated
+  const fnameIdx = liveState.accumulated.lastIndexOf(`"${file}"`);
+  const afterFname = liveState.accumulated.slice(fnameIdx);
+  const contentMatch = afterFname.match(/"content"\s*:\s*"/);
+  if (!contentMatch) return;
+
+  const contentStart = fnameIdx + afterFname.indexOf('"content"') + contentMatch[0].length;
+  const raw = liveState.accumulated.slice(contentStart);
+
+  // Decode JSON string escape sequences up to the closing quote
+  let decoded = '';
+  let i = 0;
+  while (i < raw.length) {
+    const ch = raw[i];
+    if (ch === '\\') {
+      const next = raw[i + 1];
+      if (next === undefined) break; // wait for more data
+      if (next === 'n')       { decoded += '\n'; i += 2; }
+      else if (next === 't')  { decoded += '\t'; i += 2; }
+      else if (next === 'r')  { decoded += '\r'; i += 2; }
+      else if (next === '"')  { decoded += '"';  i += 2; }
+      else if (next === '\\') { decoded += '\\'; i += 2; }
+      else                    { decoded += next; i += 2; }
+    } else if (ch === '"') {
+      // Closing quote — content ends here; stop writing and mark done
+      liveState.inContent = false;
+      break;
+    } else {
+      decoded += ch;
+      i++;
+    }
+  }
+
+  // Only show first 2000 chars live; rest is truncated
+  const MAX = 2000;
+  if (decoded.length > MAX && !block.truncated) {
+    block.fullText = decoded.slice(0, MAX);
+    block.bodyEl.textContent = block.fullText + '\n… (truncated — open Files to view full source)';
+    block.truncated = true;
+  } else if (!block.truncated) {
+    block.fullText = decoded;
+    block.bodyEl.textContent = decoded;
+  }
+
+  // Auto-scroll if user is near bottom
+  const w = document.getElementById('chat-wrap');
+  if (w.scrollHeight - w.scrollTop - w.clientHeight < 120) {
+    w.scrollTop = w.scrollHeight;
+  }
+}
+
+// Called when done event arrives — replace live blocks with final file data
+function _liveFinalize(files) {
+  if (!liveState.codeContainer) return;
+  // Clear and re-render with final content (respects truncation)
+  liveState.codeContainer.innerHTML = '';
+  files.forEach(f => {
+    if (!f.content) return;
+    const ext = f.filename.split('.').pop().toLowerCase();
+    const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
+    const blockEl = document.createElement('div');
+    blockEl.className = 'live-code-block';
+    blockEl.innerHTML = `
+      <div class="live-code-header">
+        <span class="live-code-lang">${escHtml(langLabel)}</span>
+        <span class="live-code-filename">${escHtml(f.filename)}</span>
+        <button class="live-code-copy" onclick="copyLiveCode(this)">
+          <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+      <div class="live-code-body">${escHtml(f.content.slice(0, 2000))}${f.content.length > 2000 ? '\n… (truncated — open Files to view full source)' : ''}</div>
+    `;
+    liveState.codeContainer.appendChild(blockEl);
+  });
+}
+
 // ── Send ───────────────────────────────────────────────────────
 async function sendMessage() {
   const msg = input.value.trim();
@@ -594,90 +768,122 @@ async function sendMessage() {
 
   document.getElementById('empty-state').style.display = 'none';
 
-  const stream = document.getElementById('chat-stream');
+  const chatStream = document.getElementById('chat-stream');
+  const typingEl = document.getElementById('typing');
 
   // User bubble
   const userRow = document.createElement('div');
   userRow.className = 'msg-user';
   userRow.innerHTML = `<div class="msg-user-text">${escHtml(msg)}</div>`;
-  stream.insertBefore(userRow, document.getElementById('typing'));
+  chatStream.insertBefore(userRow, typingEl);
+
+  // Code container (appears immediately, fills as stream arrives)
+  _liveReset();
+  liveState.stream = chatStream;
+  const codeContainer = document.createElement('div');
+  codeContainer.style.marginBottom = '14px';
+  chatStream.insertBefore(codeContainer, typingEl);
+  liveState.codeContainer = codeContainer;
 
   // Show typing indicator
-  document.getElementById('typing').style.display = 'block';
+  typingEl.style.display = 'block';
   document.getElementById('typing-label-text').textContent = 'Building your website…';
   scrollBottom();
 
   try {
-    const res = await fetch(`/project/website/${PROJECT_ID}/send`, {
+    const res = await fetch(`/project/website/${PROJECT_ID}/send-stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: msg })
     });
 
-    const data = await res.json();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    document.getElementById('typing').style.display = 'none';
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-    // Code blocks for each file
-    if (data.files && data.files.length > 0) {
-      const codeContainer = document.createElement('div');
-      codeContainer.style.marginBottom = '14px';
-      data.files.forEach(f => {
-        if (!f.content) return;
-        const ext = f.filename.split('.').pop().toLowerCase();
-        const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
-        const blockEl = document.createElement('div');
-        blockEl.className = 'live-code-block';
-        blockEl.innerHTML = `
-          <div class="live-code-header">
-            <span class="live-code-lang">${escHtml(langLabel)}</span>
-            <span class="live-code-filename">${escHtml(f.filename)}</span>
-            <button class="live-code-copy" onclick="copyLiveCode(this)">
-              <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              Copy
-            </button>
-          </div>
-          <div class="live-code-body">${escHtml(f.content.slice(0, 2000))}${f.content.length > 2000 ? '\n… (truncated — open Files to view full source)' : ''}</div>
-        `;
-        codeContainer.appendChild(blockEl);
-      });
-      stream.insertBefore(codeContainer, document.getElementById('typing'));
-    }
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-    // AI prose response
-    const aiRow = document.createElement('div');
-    aiRow.className = 'msg-ai';
-    let html = '';
-    if (data.error && !data.message) {
-      html = `<p style="color:#ef4444">${escHtml(data.error)}</p>`;
-    } else {
-      html = renderAiText(data.message || 'Done!');
-    }
-    aiRow.innerHTML = `
-      <div class="msg-ai-text">${html}</div>
-      <div class="msg-actions">
-        <button class="action-btn" onclick="copyText(this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-        <button class="action-btn" title="Good"><svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>
-        <button class="action-btn" title="Bad"><svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>
-        <button class="action-btn regen" title="Regenerate"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg></button>
-      </div>
-    `;
-    stream.insertBefore(aiRow, document.getElementById('typing'));
+      // Process complete SSE lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep incomplete last line
 
-    // Update file list
-    if (data.files && data.files.length > 0) {
-      currentFiles = data.files;
-      renderFileList(currentFiles);
-      updateFilesBadge(currentFiles.length);
-      document.getElementById('dev-link').style.display = 'flex';
+      let eventType = 'message';
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith('data: ')) {
+          const payload = line.slice(6);
+          try {
+            const parsed = JSON.parse(payload);
+
+            if (eventType === 'done') {
+              // ── Final event ──────────────────────────────────
+              typingEl.style.display = 'none';
+
+              if (parsed.files && parsed.files.length > 0) {
+                _liveFinalize(parsed.files);
+                currentFiles = parsed.files;
+                renderFileList(currentFiles);
+                updateFilesBadge(currentFiles.length);
+                document.getElementById('dev-link').style.display = 'flex';
+              } else if (codeContainer.children.length === 0) {
+                codeContainer.remove();
+              }
+
+              // AI prose
+              const aiRow = document.createElement('div');
+              aiRow.className = 'msg-ai';
+              let html = '';
+              if (parsed.error && !parsed.message) {
+                html = `<p style="color:#ef4444">${escHtml(parsed.error)}</p>`;
+              } else {
+                html = renderAiText(parsed.message || 'Done!');
+              }
+              aiRow.innerHTML = `
+                <div class="msg-ai-text">${html}</div>
+                <div class="msg-actions">
+                  <button class="action-btn" onclick="copyText(this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+                  <button class="action-btn" title="Good"><svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>
+                  <button class="action-btn" title="Bad"><svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>
+                  <button class="action-btn regen" title="Regenerate"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg></button>
+                </div>
+              `;
+              chatStream.insertBefore(aiRow, typingEl);
+              scrollBottom();
+
+            } else if (eventType === 'error') {
+              typingEl.style.display = 'none';
+              codeContainer.remove();
+              const errRow = document.createElement('div');
+              errRow.className = 'msg-ai';
+              errRow.innerHTML = `<div class="msg-ai-text"><p style="color:#ef4444">${escHtml(parsed.error || 'Error occurred.')}</p></div>`;
+              chatStream.insertBefore(errRow, typingEl);
+
+            } else if (parsed.chunk !== undefined) {
+              // ── Streaming chunk ───────────────────────────────
+              typingEl.style.display = 'none'; // hide dots once writing starts
+              _liveIngest(parsed.chunk);
+            }
+          } catch(parseErr) { /* ignore malformed SSE line */ }
+          eventType = 'message'; // reset for next event
+        }
+      }
     }
 
   } catch(e) {
-    document.getElementById('typing').style.display = 'none';
+    typingEl.style.display = 'none';
+    if (liveState.codeContainer && liveState.codeContainer.children.length === 0) {
+      liveState.codeContainer.remove();
+    }
     const errRow = document.createElement('div');
     errRow.className = 'msg-ai';
     errRow.innerHTML = '<div class="msg-ai-text"><p>Connection error. Please try again.</p></div>';
-    stream.insertBefore(errRow, document.getElementById('typing'));
+    chatStream.insertBefore(errRow, typingEl);
   }
 
   isSending = false;
