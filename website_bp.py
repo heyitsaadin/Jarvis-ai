@@ -5,7 +5,7 @@ Register in app.py with:
     from website_bp import website_bp
     app.register_blueprint(website_bp)
 
-AI Backend: NVIDIA NIM — minimaxai/minimax-m3
+AI Backend: NVIDIA NIM — moonshotai/kimi-k2.6
 Uses SSE streaming to bypass Vercel's 10s serverless timeout.
 Checkpoints are emitted at each stage so the frontend can show progress.
 """
@@ -271,7 +271,7 @@ def _sse(payload: dict) -> str:
 
 # ─── Streaming generator ──────────────────────────────────────────────────────
 
-def _stream_minimax(messages, current_files):
+def _stream_kimi(messages, current_files):
     """
     Generator that yields SSE events:
       checkpoint  →  { checkpoint, label }
@@ -301,21 +301,18 @@ def _stream_minimax(messages, current_files):
         api_messages.append({"role": role, "content": content})
 
     # ── Checkpoint 1: Starting ───────────────────────────────────────────────
-    yield _sse({"checkpoint": "thinking", "label": "🧠 MiniMax is planning your website…"})
+    yield _sse({"checkpoint": "thinking", "label": "🧠 Kimi K2.6 is planning your website…"})
 
     full_text = ""
     try:
         client = _nvidia_client()
         stream = client.chat.completions.create(
-            model="minimaxai/minimax-m3",
+            model="moonshotai/kimi-k2.6",
             messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
             max_tokens=8192,
             temperature=0.3,
             top_p=0.95,
             stream=True,
-            extra_body={
-                "chat_template_kwargs": {"thinking_mode": "disabled"}
-            }
         )
 
         files_checkpoint_sent = False
@@ -365,7 +362,7 @@ def _stream_minimax(messages, current_files):
 
 def _stream_groq(messages, current_files):
     """
-    Same SSE contract as _stream_minimax but routes to Groq (llama-3.3-70b-versatile).
+    Same SSE contract as _stream_kimi but routes to Groq (llama-3.3-70b-versatile).
     """
     api_key = os.environ.get("GROQ_API_KEY", "")
     if not api_key:
@@ -503,7 +500,7 @@ def website_send(project_id):
         error = None
 
         # ── Stream from chosen backend ───────────────────────────────────────
-        stream_fn = _stream_groq if use_groq else _stream_minimax
+        stream_fn = _stream_groq if use_groq else _stream_kimi
         for line in stream_fn(messages, current_files):
             yield line
 
