@@ -9,39 +9,45 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-  <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#0a0a0a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
 <title>{{ project.name }}</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 <style>
+/* ── Tokens (chat.html palette) ── */
 :root {
-  --bg:       #0d0d0d;
-  --surface:  #161616;
-  --surface2: #1e1e1e;
-  --border:   rgba(255,255,255,0.09);
-  --border2:  rgba(255,255,255,0.15);
-  --text:     #e8e8e8;
-  --text2:    #777;
-  --text3:    #555;
-  --accent:   #4e7cf6;
-  --green:    #22c55e;
+  --bg:       #fbfbfa;
+  --surface:  #f0f0ee;
+  --surface2: #e8e8e6;
+  --border:   rgba(0,0,0,0.08);
+  --border2:  rgba(0,0,0,0.13);
+  --text:     #181816;
+  --text2:    #706f6c;
+  --text3:    #b0aeab;
+  --accent:   #181816;
+  --accent-fg:#ffffff;
+  --code-bg:  #1e1e2e;
+  --code-fg:  #cdd6f4;
   --safe-t:   env(safe-area-inset-top,0px);
   --safe-b:   env(safe-area-inset-bottom,0px);
 }
-[data-theme="light"] {
-  --bg:      #ffffff;
-  --surface: #f7f7f7;
-  --surface2:#eeeeee;
-  --border:  rgba(0,0,0,0.08);
-  --border2: rgba(0,0,0,0.13);
-  --text:    #111;
-  --text2:   #888;
-  --text3:   #bbb;
+[data-theme="dark"] {
+  --bg:       #0a0a0a;
+  --surface:  #141414;
+  --surface2: #1e1e1e;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.12);
+  --text:     #f0f0ee;
+  --text2:    #8a8a88;
+  --text3:    #555;
+  --accent:   #f0f0ee;
+  --accent-fg:#0a0a0a;
 }
+
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden;position:fixed}
 
@@ -56,16 +62,19 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
   flex-shrink:0;
   position:relative;
 }
-#menu-btn,#new-btn{
+.topbar-btn{
   width:32px;height:32px;border-radius:8px;
   background:none;border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   color:var(--text2);flex-shrink:0;
+  transition:background .15s,color .15s;
 }
-#menu-btn svg,#new-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.topbar-btn:hover{background:var(--surface);color:var(--text)}
+.topbar-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#topbar-left{display:flex;align-items:center;gap:4px}
 #topbar-center{position:absolute;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none}
-#project-name{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap}
-#project-sub{font-size:11px;color:var(--accent);font-weight:500;margin-top:1px}
+#project-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;letter-spacing:-.2px}
+#project-sub{font-size:10px;color:var(--text2);font-weight:500;margin-top:1px;letter-spacing:.3px;text-transform:uppercase}
 
 /* ── Chat scroll area ── */
 #chat-wrap{flex:1;overflow-y:auto;overflow-x:hidden}
@@ -78,129 +87,164 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
   animation:fadeUp .25s ease both;
 }
 .msg-user-text{
-  background:var(--surface2);
+  background:var(--surface);
   border-radius:20px 20px 4px 20px;
   padding:11px 15px;
-  font-size:15px;line-height:1.55;color:var(--text);
+  font-size:14.5px;line-height:1.55;color:var(--text);
   max-width:82%;word-break:break-word;
+  border:1px solid var(--border);
 }
 
 /* ── AI response block ── */
-.msg-ai{margin-bottom:24px;animation:fadeUp .25s ease both}
+.msg-ai{margin-bottom:28px;animation:fadeUp .25s ease both}
 
-/* Thinking block — DeepSeek style */
+/* ── Think block — DeepSeek minimal style ── */
 .think-block{
   background:var(--surface);
   border:1px solid var(--border2);
-  border-radius:12px;
+  border-radius:10px;
   margin-bottom:14px;
   overflow:hidden;
 }
 .think-header{
   display:flex;align-items:center;gap:8px;
-  padding:10px 14px;cursor:pointer;
+  padding:9px 13px;cursor:pointer;
   user-select:none;
 }
 .think-spinner{
-  width:14px;height:14px;flex-shrink:0;
-  border:2px solid var(--border2);
-  border-top-color:var(--accent);
+  width:13px;height:13px;flex-shrink:0;
+  border:1.8px solid var(--border2);
+  border-top-color:var(--text2);
   border-radius:50%;
   animation:spin .8s linear infinite;
 }
 .think-spinner.done{animation:none;border-top-color:var(--border2)}
 @keyframes spin{to{transform:rotate(360deg)}}
-.think-label{font-size:13px;font-weight:500;color:var(--text2);flex:1}
+.think-label{font-size:12.5px;font-weight:500;color:var(--text2);flex:1}
 .think-chevron{
-  width:16px;height:16px;stroke:var(--text3);fill:none;
+  width:14px;height:14px;stroke:var(--text3);fill:none;
   stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
   transition:transform .2s;flex-shrink:0;
 }
 .think-block.collapsed .think-chevron{transform:rotate(-90deg)}
 .think-body{
-  padding:2px 14px 12px;
-  font-size:13px;line-height:1.7;color:var(--text2);
+  padding:2px 13px 11px;
+  font-size:12.5px;line-height:1.7;color:var(--text2);
   border-top:1px solid var(--border);
   overflow:hidden;
 }
 .think-block.collapsed .think-body{display:none}
-/* Bullet list inside thinking */
-.think-body ul{padding-left:16px;margin-top:6px}
-.think-body li{margin-bottom:4px}
-/* Blockquote for reasoning paragraphs */
-.think-block blockquote,.think-body blockquote{
-  border-left:2px solid var(--border2);
-  padding-left:12px;margin:6px 0;color:var(--text2);font-style:normal;
+.think-body p{margin-bottom:3px}
+
+/* ── Real-time code paste block inside chat ── */
+.live-code-block{
+  background:var(--code-bg);
+  border-radius:10px;
+  margin:10px 0;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.07);
+  position:relative;
 }
+.live-code-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 13px;border-bottom:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.03);
+}
+.live-code-lang{font-size:11.5px;font-weight:600;color:#7f8c9a;font-family:monospace;letter-spacing:.3px}
+.live-code-filename{font-size:11px;color:#7f8c9a;font-family:monospace}
+.live-code-copy{
+  font-size:11px;font-weight:600;color:#7f8c9a;
+  background:none;border:none;cursor:pointer;
+  display:flex;align-items:center;gap:4px;padding:2px 0;
+  transition:color .15s;
+}
+.live-code-copy:hover{color:#a0adb8}
+.live-code-copy svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.live-code-body{
+  padding:12px 14px;overflow-x:auto;
+  font-family:'Courier New',Courier,monospace;
+  font-size:12px;line-height:1.7;color:var(--code-fg);
+  white-space:pre;tab-size:2;max-height:260px;
+}
+.live-code-body::-webkit-scrollbar{height:3px}
+.live-code-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+.live-code-streaming::after{
+  content:'▌';
+  display:inline-block;
+  color:#7f8c9a;
+  animation:blink .7s steps(1) infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
 /* ── AI prose ── */
-.msg-ai-text{font-size:15px;line-height:1.7;color:var(--text)}
+.msg-ai-text{font-size:14.5px;line-height:1.7;color:var(--text)}
 .msg-ai-text p{margin-bottom:10px}
 .msg-ai-text p:last-child{margin-bottom:0}
 .msg-ai-text strong{font-weight:700}
 .msg-ai-text h1,.msg-ai-text h2,.msg-ai-text h3{font-weight:700;margin:12px 0 6px}
-.msg-ai-text h1{font-size:18px}
-.msg-ai-text h2{font-size:16px}
-.msg-ai-text h3{font-size:15px}
+.msg-ai-text h1{font-size:16px}
+.msg-ai-text h2{font-size:15px}
+.msg-ai-text h3{font-size:14px}
 .msg-ai-text ul,.msg-ai-text ol{padding-left:20px;margin-bottom:10px}
 .msg-ai-text li{margin-bottom:4px}
 
-/* ── Code block ── */
+/* ── Static code block ── */
 .code-block{
-  background:var(--surface);
-  border:1px solid var(--border2);
+  background:var(--code-bg);
+  border:1px solid rgba(255,255,255,.07);
   border-radius:10px;
   margin:10px 0;
   overflow:hidden;
 }
 .code-header{
   display:flex;align-items:center;justify-content:space-between;
-  padding:8px 14px;border-bottom:1px solid var(--border);
+  padding:7px 13px;border-bottom:1px solid rgba(255,255,255,.07);
 }
-.code-lang{font-size:12px;font-weight:600;color:var(--text2);font-family:monospace}
+.code-lang{font-size:11.5px;font-weight:600;color:#7f8c9a;font-family:monospace}
 .code-copy{
-  font-size:11px;font-weight:600;color:var(--text2);
+  font-size:11px;font-weight:600;color:#7f8c9a;
   background:none;border:none;cursor:pointer;
-  display:flex;align-items:center;gap:5px;padding:2px 0;
+  display:flex;align-items:center;gap:4px;padding:2px 0;
+  transition:color .15s;
 }
-.code-copy svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.code-copy:hover{color:#a0adb8}
+.code-copy svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .code-body{
   padding:12px 14px;overflow-x:auto;
   font-family:'Courier New',Courier,monospace;
-  font-size:12.5px;line-height:1.7;color:#cdd6f4;
+  font-size:12px;line-height:1.7;color:var(--code-fg);
   white-space:pre;tab-size:2;
 }
 .code-body::-webkit-scrollbar{height:3px}
-.code-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.code-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
 
 /* Inline code */
 .msg-ai-text code:not(.block-code){
-  background:rgba(255,255,255,0.07);
-  border-radius:5px;padding:1px 6px;
+  background:var(--surface2);
+  border-radius:4px;padding:1px 5px;
   font-family:monospace;font-size:13px;
-  color:#cdd6f4;
+  color:var(--text);
 }
-[data-theme="light"] .msg-ai-text code:not(.block-code){background:rgba(0,0,0,0.07);color:#555}
 
 /* AI action row */
 .msg-actions{
   display:flex;align-items:center;gap:2px;margin-top:10px;
 }
 .action-btn{
-  width:32px;height:32px;border-radius:8px;
+  width:30px;height:30px;border-radius:8px;
   background:none;border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   color:var(--text3);transition:color .15s,background .15s;
 }
 .action-btn:hover{color:var(--text2);background:var(--surface)}
-.action-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.action-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .action-btn.regen{margin-left:auto}
 
 /* ── Typing indicator ── */
 #typing{display:none;margin-bottom:16px;animation:fadeUp .25s ease both;padding:0 2px}
 .typing-row{display:flex;align-items:center;gap:8px}
 .typing-dots{display:flex;gap:4px;align-items:center}
-.typing-dots span{width:6px;height:6px;border-radius:50%;background:var(--accent);opacity:.45;animation:dotP 1.2s ease-in-out infinite}
+.typing-dots span{width:5px;height:5px;border-radius:50%;background:var(--text2);opacity:.45;animation:dotP 1.2s ease-in-out infinite}
 .typing-dots span:nth-child(2){animation-delay:.2s}
 .typing-dots span:nth-child(3){animation-delay:.4s}
 @keyframes dotP{0%,80%,100%{transform:scale(.7);opacity:.35}40%{transform:scale(1.1);opacity:1}}
@@ -214,20 +258,21 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
   min-height:260px;
 }
 #empty-state .es-icon{
-  width:54px;height:54px;border-radius:16px;
-  background:linear-gradient(135deg,#5b6af0,#8b5cf6);
-  display:flex;align-items:center;justify-content:center;font-size:26px;
+  width:48px;height:48px;border-radius:14px;
+  background:var(--surface);
+  border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;font-size:22px;
 }
-#empty-state h3{font-size:19px;font-weight:700}
-#empty-state p{font-size:13.5px;color:var(--text2);line-height:1.6;max-width:270px}
-.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:2px}
+#empty-state h3{font-size:18px;font-weight:700;letter-spacing:-.3px}
+#empty-state p{font-size:13px;color:var(--text2);line-height:1.6;max-width:260px}
+.chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:2px}
 .chip{
   background:var(--surface);border:1px solid var(--border2);
-  border-radius:22px;padding:8px 15px;
-  font-size:13px;color:var(--text2);cursor:pointer;
+  border-radius:20px;padding:7px 14px;
+  font-size:12.5px;color:var(--text2);cursor:pointer;
   transition:border-color .15s,color .15s;
 }
-.chip:active{border-color:var(--accent);color:var(--accent)}
+.chip:active{border-color:var(--accent);color:var(--text)}
 
 /* ── Input dock ── */
 #input-dock{
@@ -241,23 +286,23 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
   border-radius:22px;padding:8px 8px 8px 16px;
   transition:border-color .2s;
 }
-#input-wrap:focus-within{border-color:rgba(78,124,246,.5)}
+#input-wrap:focus-within{border-color:var(--text3)}
 #chat-input{
   flex:1;background:none;border:none;outline:none;
-  font-size:15px;color:var(--text);resize:none;
+  font-size:14.5px;color:var(--text);resize:none;
   line-height:1.5;max-height:120px;min-height:24px;
   padding:2px 0;font-family:inherit;
 }
 #chat-input::placeholder{color:var(--text3)}
 #send-btn{
-  width:36px;height:36px;border-radius:50%;flex-shrink:0;
+  width:34px;height:34px;border-radius:50%;flex-shrink:0;
   background:var(--accent);border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   transition:opacity .15s,transform .15s;
 }
-#send-btn:disabled{opacity:.35}
+#send-btn:disabled{opacity:.3}
 #send-btn:not(:disabled):active{transform:scale(.9)}
-#send-btn svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+#send-btn svg{width:15px;height:15px;stroke:var(--accent-fg);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ── Animations ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -267,8 +312,8 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
   position:fixed;bottom:calc(80px + var(--safe-b));left:50%;
   transform:translateX(-50%) translateY(6px);
   background:var(--surface2);border:1px solid var(--border2);
-  border-radius:12px;padding:9px 18px;
-  font-size:13px;font-weight:600;color:var(--text);
+  border-radius:10px;padding:8px 16px;
+  font-size:12.5px;font-weight:600;color:var(--text);
   opacity:0;pointer-events:none;z-index:999;
   transition:opacity .2s,transform .2s;white-space:nowrap;
 }
@@ -280,10 +325,12 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
   background:rgba(0,0,0,0);pointer-events:none;
   transition:background .28s;
 }
-#drawer-overlay.open{background:rgba(0,0,0,.55);pointer-events:all}
+#drawer-overlay.open{background:rgba(0,0,0,.35);pointer-events:all}
+[data-theme="dark"] #drawer-overlay.open{background:rgba(0,0,0,.6)}
 #drawer{
-  position:absolute;left:0;top:0;bottom:0;width:80%;max-width:300px;
-  background:var(--surface);
+  position:absolute;left:0;top:0;bottom:0;width:82%;max-width:290px;
+  background:var(--bg);
+  border-right:1px solid var(--border2);
   transform:translateX(-100%);
   transition:transform .3s cubic-bezier(.22,1,.36,1);
   display:flex;flex-direction:column;
@@ -292,28 +339,28 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 #drawer-overlay.open #drawer{transform:translateX(0)}
 #drawer-header{
   display:flex;align-items:center;justify-content:space-between;
-  padding:16px 16px 14px;border-bottom:1px solid var(--border);
+  padding:14px 16px 12px;border-bottom:1px solid var(--border);
 }
-#drawer-title{font-size:15px;font-weight:700}
+#drawer-title{font-size:13.5px;font-weight:700;letter-spacing:-.1px}
 #drawer-close{
-  width:30px;height:30px;border-radius:50%;
-  background:var(--surface2);border:none;cursor:pointer;
+  width:28px;height:28px;border-radius:8px;
+  background:var(--surface);border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;color:var(--text2);
 }
-#drawer-close svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
-#drawer-nav{padding:10px 10px;display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+#drawer-close svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+#drawer-nav{padding:8px 10px;display:flex;flex-direction:column;gap:1px;flex-shrink:0}
 .dnav-btn{
-  display:flex;align-items:center;gap:12px;
-  padding:12px 12px;border-radius:12px;
+  display:flex;align-items:center;gap:11px;
+  padding:11px 10px;border-radius:9px;
   background:none;border:none;cursor:pointer;
-  color:var(--text);font-size:14px;font-weight:500;
+  color:var(--text);font-size:13.5px;font-weight:500;
   text-align:left;transition:background .15s;
 }
-.dnav-btn:hover{background:var(--surface2)}
-.dnav-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;color:var(--text2)}
+.dnav-btn:hover{background:var(--surface)}
+.dnav-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;color:var(--text2)}
 .dnav-label{flex:1}
 .dnav-badge{
-  background:var(--accent);color:#fff;
+  background:var(--text);color:var(--bg);
   font-size:10px;font-weight:700;
   border-radius:20px;padding:1px 7px;min-width:18px;text-align:center;
 }
@@ -324,57 +371,57 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 .drawer-panel{display:none;flex-direction:column;gap:0}
 .drawer-panel.active{display:flex}
 .dpanel-back{
-  display:flex;align-items:center;gap:8px;
+  display:flex;align-items:center;gap:7px;
   padding:10px 2px 12px;border:none;background:none;
-  cursor:pointer;color:var(--accent);font-size:13px;font-weight:600;
+  cursor:pointer;color:var(--text2);font-size:12.5px;font-weight:600;
 }
-.dpanel-back svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.dpanel-back svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Files */
 .file-item{
   display:flex;align-items:center;gap:10px;
-  padding:11px 10px;border-radius:12px;
+  padding:10px 8px;border-radius:9px;
   cursor:pointer;transition:background .15s;
 }
-.file-item:hover{background:var(--surface2)}
-.file-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.file-icon.html{background:rgba(239,100,68,.15)}
-.file-icon.css{background:rgba(59,130,246,.15)}
-.file-icon.js{background:rgba(234,179,8,.15)}
-.file-icon.other{background:rgba(124,109,250,.15)}
-.file-name{font-size:13.5px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-item:hover{background:var(--surface)}
+.file-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.file-icon.html{background:rgba(239,100,68,.12)}
+.file-icon.css{background:rgba(59,130,246,.12)}
+.file-icon.js{background:rgba(234,179,8,.12)}
+.file-icon.other{background:var(--surface2)}
+.file-name{font-size:13px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .file-empty{text-align:center;color:var(--text2);font-size:13px;padding:32px 0;line-height:1.6}
 
 /* File viewer */
 #file-viewer{display:none;flex-direction:column;height:100%}
 #file-viewer.show{display:flex}
-#fv-name{font-size:13px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#fv-copy{padding:5px 11px;border-radius:8px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;border:none;cursor:pointer}
-#fv-code{flex:1;overflow:auto;padding:12px 4px;font-family:monospace;font-size:12px;line-height:1.7;color:#cdd6f4;white-space:pre-wrap;word-break:break-all;background:var(--bg);border-radius:10px}
+#fv-name{font-size:12.5px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#fv-copy{padding:4px 10px;border-radius:7px;font-size:12px;font-weight:600;background:var(--accent);color:var(--accent-fg);border:none;cursor:pointer}
+#fv-code{flex:1;overflow:auto;padding:12px 4px;font-family:monospace;font-size:12px;line-height:1.7;color:var(--code-fg);white-space:pre-wrap;word-break:break-all;background:var(--code-bg);border-radius:9px}
 #fv-code::-webkit-scrollbar{display:none}
 
 /* Preview */
-#preview-frame{width:100%;height:340px;border:none;border-radius:10px;background:#fff;display:none}
+#preview-frame{width:100%;height:340px;border:none;border-radius:9px;background:#fff;display:none}
 .preview-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text2);text-align:center;padding:40px 0;font-size:13px}
 #preview-open-btn{
-  margin-top:6px;padding:8px 18px;border-radius:10px;
-  background:var(--accent);color:#fff;border:none;cursor:pointer;
-  font-size:13px;font-weight:600;
+  margin-top:6px;padding:7px 16px;border-radius:9px;
+  background:var(--accent);color:var(--accent-fg);border:none;cursor:pointer;
+  font-size:12.5px;font-weight:600;
 }
 
 /* Versions */
 .version-item{
   display:flex;align-items:center;gap:10px;
-  padding:11px 10px;border-radius:12px;
-  background:var(--surface2);border:1px solid var(--border);
+  padding:10px 10px;border-radius:9px;
+  background:var(--surface);border:1px solid var(--border);
   margin-bottom:6px;
 }
 .version-info{flex:1}
-.version-label{font-size:13.5px;font-weight:600}
+.version-label{font-size:13px;font-weight:600}
 .version-time{font-size:11px;color:var(--text2);margin-top:2px}
 .version-restore{
-  padding:5px 11px;border-radius:8px;font-size:12px;font-weight:600;
-  background:var(--surface);border:1px solid var(--border2);
+  padding:4px 10px;border-radius:7px;font-size:12px;font-weight:600;
+  background:var(--bg);border:1px solid var(--border2);
   color:var(--text2);cursor:pointer;
 }
 .version-empty{text-align:center;color:var(--text2);font-size:13px;padding:32px 0}
@@ -385,14 +432,21 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 
   <!-- TOPBAR -->
   <div id="topbar">
-    <button id="menu-btn" onclick="openDrawer()" aria-label="Menu">
-      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    </button>
+    <div id="topbar-left">
+      <!-- Back button -->
+      <button class="topbar-btn" onclick="history.back()" aria-label="Back">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <!-- Menu button -->
+      <button class="topbar-btn" onclick="openDrawer()" aria-label="Menu">
+        <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
     <div id="topbar-center">
       <div id="project-name">{{ project.name }}</div>
-      <div id="project-sub">Expert</div>
+      <div id="project-sub">Website Builder</div>
     </div>
-    <button id="new-btn" onclick="if(confirm('Start new chat? History stays saved.'))location.reload()" aria-label="New chat">
+    <button class="topbar-btn" onclick="if(confirm('Start new chat? History stays saved.'))location.reload()" aria-label="New chat">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
     </button>
   </div>
@@ -425,7 +479,6 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
             <button class="action-btn" onclick="copyText(this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
             <button class="action-btn" title="Good"><svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>
             <button class="action-btn" title="Bad"><svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>
-            <button class="action-btn" title="Share"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
             <button class="action-btn regen" title="Regenerate"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg></button>
           </div>
         </div>
@@ -445,7 +498,7 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
   <!-- INPUT -->
   <div id="input-dock">
     <div id="input-wrap">
-      <textarea id="chat-input" rows="1" placeholder="Type a message or hold to speak" maxlength="4000"></textarea>
+      <textarea id="chat-input" rows="1" placeholder="Describe your website…" maxlength="4000"></textarea>
       <button id="send-btn" onclick="sendMessage()" disabled>
         <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
@@ -501,8 +554,8 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
         </div>
         <div id="file-viewer">
           <div style="display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:10px">
-            <button class="dpanel-back" style="padding:0;margin:0" onclick="closeFileViewer()"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
-            <span id="fv-name" style="font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+            <button class="dpanel-back" style="padding:0;margin:0" onclick="closeFileViewer()"><svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+            <span id="fv-name"></span>
             <button id="fv-copy" onclick="copyFileContent()">Copy</button>
           </div>
           <pre id="fv-code"></pre>
@@ -515,7 +568,7 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
           <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg> Back
         </button>
         <div class="preview-empty" id="preview-empty">
-          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           <p>Build something first,<br>then preview it here.</p>
           <button id="preview-open-btn" onclick="openInBrowser()" style="display:none">Open in Browser</button>
         </div>
@@ -543,13 +596,12 @@ const PROJECT_ID = {{ project.id }};
 let currentFiles = {{ files | tojson }};
 let isSending = false;
 
-// ── Marked config ──────────────────────────────────────────────
 if (typeof marked !== 'undefined') {
   marked.setOptions({ breaks: true, gfm: true });
 }
 
 // ── Input ──────────────────────────────────────────────────────
-const input  = document.getElementById('chat-input');
+const input   = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
 input.addEventListener('input', () => {
   input.style.height = 'auto';
@@ -581,9 +633,6 @@ async function sendMessage() {
   const msg = input.value.trim();
   if (!msg || isSending) return;
 
-  const useGroq = msg.toLowerCase().startsWith('@groq ');
-  const displayMsg = useGroq ? msg.slice(6).trim() : msg;
-
   isSending = true;
   sendBtn.disabled = true;
   input.value = '';
@@ -591,35 +640,41 @@ async function sendMessage() {
 
   document.getElementById('empty-state').style.display = 'none';
 
-  // User bubble
   const stream = document.getElementById('chat-stream');
+
+  // User bubble
   const userRow = document.createElement('div');
   userRow.className = 'msg-user';
-  if (useGroq) {
-    userRow.innerHTML = `<div class="msg-user-text">${escHtml(displayMsg)}<br><span style="font-size:10px;opacity:.6;margin-top:4px;display:inline-block">⚡ via Groq</span></div>`;
-  } else {
-    userRow.innerHTML = `<div class="msg-user-text">${escHtml(displayMsg)}</div>`;
-  }
+  userRow.innerHTML = `<div class="msg-user-text">${escHtml(msg)}</div>`;
   stream.insertBefore(userRow, document.getElementById('typing'));
 
-  // Show thinking block
+  // Think block — unique IDs per message
+  const msgId = Date.now();
   const thinkBlock = document.createElement('div');
   thinkBlock.className = 'think-block';
   thinkBlock.innerHTML = `
     <div class="think-header" onclick="toggleThink(this.parentElement)">
-      <div class="think-spinner" id="think-spinner"></div>
-      <span class="think-label" id="think-label">Thinking…</span>
+      <div class="think-spinner" id="think-spinner-${msgId}"></div>
+      <span class="think-label" id="think-label-${msgId}">Thinking…</span>
       <svg class="think-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div class="think-body" id="think-body"></div>
+    <div class="think-body" id="think-body-${msgId}"></div>
   `;
   stream.insertBefore(thinkBlock, document.getElementById('typing'));
-  scrollBottom();
 
+  // Live code container (shown during streaming, attached after thinkBlock)
+  const liveCodeContainer = document.createElement('div');
+  liveCodeContainer.id = `live-code-${msgId}`;
+  liveCodeContainer.style.marginBottom = '14px';
+  stream.insertBefore(liveCodeContainer, document.getElementById('typing'));
+
+  scrollBottom();
   document.getElementById('typing').style.display = 'block';
 
   let finalData = null;
   let thinkSteps = [];
+  // Track live code blocks currently being streamed
+  const liveBlocks = {}; // filename -> { el, bodyEl }
 
   try {
     const res = await fetch(`/project/website/${PROJECT_ID}/send`, {
@@ -646,31 +701,69 @@ async function sendMessage() {
 
         if (payload.checkpoint === 'keepalive') continue;
 
-        // Update thinking label + body
+        // ── Think label / steps ──────────────────────────────
         if (payload.checkpoint && payload.label) {
-          const lbl = document.getElementById('think-label');
+          const lbl = document.getElementById(`think-label-${msgId}`);
           if (lbl) lbl.textContent = payload.label;
           thinkSteps.push(payload.label);
-          const tb = document.getElementById('think-body');
+          const tb = document.getElementById(`think-body-${msgId}`);
           if (tb) tb.innerHTML = thinkSteps.map(s => `<p>• ${escHtml(s)}</p>`).join('');
           scrollBottom();
         }
 
+        // ── Live code streaming chunk ────────────────────────
+        // Expected payload: { checkpoint:'code_chunk', filename:'index.html', lang:'html', chunk:'...' }
+        if (payload.checkpoint === 'code_chunk' && payload.filename) {
+          const fname = payload.filename;
+          if (!liveBlocks[fname]) {
+            // Create a new live block for this file
+            const ext = fname.split('.').pop().toLowerCase();
+            const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
+            const blockEl = document.createElement('div');
+            blockEl.className = 'live-code-block';
+            blockEl.innerHTML = `
+              <div class="live-code-header">
+                <span class="live-code-lang">${escHtml(langLabel)}</span>
+                <span class="live-code-filename">${escHtml(fname)}</span>
+                <button class="live-code-copy" onclick="copyLiveCode(this)">
+                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  Copy
+                </button>
+              </div>
+              <div class="live-code-body live-code-streaming"></div>
+            `;
+            liveCodeContainer.appendChild(blockEl);
+            const bodyEl = blockEl.querySelector('.live-code-body');
+            liveBlocks[fname] = { blockEl, bodyEl };
+          }
+          const bodyEl = liveBlocks[fname].bodyEl;
+          bodyEl.textContent += payload.chunk || '';
+          // Auto-scroll code body to bottom
+          bodyEl.scrollTop = bodyEl.scrollHeight;
+          scrollBottom();
+        }
+
+        // ── Complete ─────────────────────────────────────────
         if (payload.checkpoint === 'complete') {
           finalData = payload;
 
-          // Stop spinner, update label
-          const spinner = document.getElementById('think-spinner');
+          // Stop spinner
+          const spinner = document.getElementById(`think-spinner-${msgId}`);
           if (spinner) spinner.classList.add('done');
-          const lbl = document.getElementById('think-label');
-          if (lbl) lbl.textContent = `Thought for a moment`;
+          const lbl = document.getElementById(`think-label-${msgId}`);
+          if (lbl) lbl.textContent = 'Done thinking';
 
-          // Collapse think block after short delay
-          setTimeout(() => { thinkBlock.classList.add('collapsed'); }, 600);
+          // Remove streaming cursor from all live blocks
+          Object.values(liveBlocks).forEach(({ bodyEl }) => {
+            bodyEl.classList.remove('live-code-streaming');
+          });
+
+          // Collapse think block
+          setTimeout(() => { thinkBlock.classList.add('collapsed'); }, 500);
 
           document.getElementById('typing').style.display = 'none';
 
-          // Build AI response
+          // Build AI prose response (after live code blocks)
           const aiRow = document.createElement('div');
           aiRow.className = 'msg-ai';
 
@@ -688,10 +781,10 @@ async function sendMessage() {
               <button class="action-btn" onclick="copyText(this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
               <button class="action-btn" title="Good"><svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>
               <button class="action-btn" title="Bad"><svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>
-              <button class="action-btn" title="Share"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
               <button class="action-btn regen" title="Regenerate"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg></button>
             </div>
           `;
+          // Insert prose AFTER the live code container
           stream.insertBefore(aiRow, document.getElementById('typing'));
 
           if (finalData.files && finalData.files.length > 0) {
@@ -699,6 +792,28 @@ async function sendMessage() {
             renderFileList(currentFiles);
             updateFilesBadge(currentFiles.length);
             document.getElementById('dev-link').style.display = 'flex';
+
+            // If live blocks weren't populated via streaming, fill them now from finalData
+            finalData.files.forEach(f => {
+              if (!liveBlocks[f.filename] && f.content) {
+                const ext = f.filename.split('.').pop().toLowerCase();
+                const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
+                const blockEl = document.createElement('div');
+                blockEl.className = 'live-code-block';
+                blockEl.innerHTML = `
+                  <div class="live-code-header">
+                    <span class="live-code-lang">${escHtml(langLabel)}</span>
+                    <span class="live-code-filename">${escHtml(f.filename)}</span>
+                    <button class="live-code-copy" onclick="copyLiveCode(this)">
+                      <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      Copy
+                    </button>
+                  </div>
+                  <div class="live-code-body">${escHtml(f.content.slice(0, 2000))}${f.content.length > 2000 ? '\n… (truncated — open Files to view full source)' : ''}</div>
+                `;
+                liveCodeContainer.appendChild(blockEl);
+              }
+            });
           }
 
           isSending = false;
@@ -713,7 +828,7 @@ async function sendMessage() {
     // Stream ended without complete
     document.getElementById('typing').style.display = 'none';
     if (!finalData) {
-      const spinner = document.getElementById('think-spinner');
+      const spinner = document.getElementById(`think-spinner-${msgId}`);
       if (spinner) spinner.classList.add('done');
       const errRow = document.createElement('div');
       errRow.className = 'msg-ai';
@@ -723,7 +838,7 @@ async function sendMessage() {
 
   } catch(e) {
     document.getElementById('typing').style.display = 'none';
-    const spinner = document.getElementById('think-spinner');
+    const spinner = document.getElementById(`think-spinner-${msgId}`);
     if (spinner) spinner.classList.add('done');
     const errRow = document.createElement('div');
     errRow.className = 'msg-ai';
@@ -736,9 +851,8 @@ async function sendMessage() {
   scrollBottom();
 }
 
-// ── Render AI text with code blocks ───────────────────────────
+// ── Render AI text ─────────────────────────────────────────────
 function renderAiText(text) {
-  // Extract code blocks first, replace with placeholders
   const blocks = [];
   const withPlaceholders = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
     const idx = blocks.length;
@@ -746,7 +860,6 @@ function renderAiText(text) {
     return `%%CODEBLOCK_${idx}%%`;
   });
 
-  // Render remaining markdown as prose
   let html = '';
   if (typeof marked !== 'undefined') {
     html = DOMPurify.sanitize(marked.parse(withPlaceholders));
@@ -754,7 +867,6 @@ function renderAiText(text) {
     html = `<p>${escHtml(withPlaceholders).replace(/\n/g,'<br>')}</p>`;
   }
 
-  // Reinsert code blocks as styled divs
   html = html.replace(/%%CODEBLOCK_(\d+)%%/g, (_, i) => {
     const b = blocks[parseInt(i)];
     return `<div class="code-block">
@@ -772,12 +884,15 @@ function renderAiText(text) {
   return html;
 }
 
-function toggleThink(el) {
-  el.classList.toggle('collapsed');
-}
+function toggleThink(el) { el.classList.toggle('collapsed'); }
 
 function copyCode(btn) {
   const code = btn.closest('.code-block').querySelector('.code-body').textContent;
+  navigator.clipboard.writeText(code).then(() => showToast('Copied!'));
+}
+
+function copyLiveCode(btn) {
+  const code = btn.closest('.live-code-block').querySelector('.live-code-body').textContent;
   navigator.clipboard.writeText(code).then(() => showToast('Copied!'));
 }
 
@@ -798,7 +913,6 @@ function drawerOverlayClick(e) {
   if (e.target === document.getElementById('drawer-overlay')) closeDrawer();
 }
 
-let activePanel = null;
 function showDrawerPanel(name) {
   document.querySelectorAll('.drawer-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('drawer-nav').style.display = name ? 'none' : 'flex';
@@ -806,13 +920,11 @@ function showDrawerPanel(name) {
     const p = document.getElementById(`panel-${name}`);
     if (p) p.classList.add('active');
     document.getElementById('drawer-title').textContent =
-      name === 'files' ? 'Files' : name === 'preview' ? 'Preview' : 'Version History';
-    activePanel = name;
+      name === 'files' ? 'Files' : name === 'preview' ? 'Preview' : 'History';
     if (name === 'preview') loadPreview();
     if (name === 'history') loadVersions();
   } else {
     document.getElementById('drawer-title').textContent = 'Menu';
-    activePanel = null;
   }
 }
 
@@ -830,10 +942,10 @@ function renderFileList(files) {
   if (empty) empty.style.display = files.length ? 'none' : 'block';
 
   const icons = {
-    html: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#ef6444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,
-    css:  `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,
-    js:   `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,
-    other:`<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#7c6dfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,
+    html: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#ef6444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,
+    css:  `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,
+    js:   `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,
+    other:`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,
   };
 
   files.forEach(f => {
