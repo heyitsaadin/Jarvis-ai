@@ -357,6 +357,25 @@ def _call_groq(messages, current_files):
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
+@website_bp.route("/project/website/<int:project_id>")
+def website_editor(project_id):
+    if "user" not in session:
+        return redirect("/")
+    username = session["user"]
+    project = _get_project(project_id, username)
+    if not project:
+        return redirect("/landing")
+    messages = _get_chat(project_id, username)
+    files = _get_files(project_id, username)
+    return render_template(
+        "website_chat.html",
+        project=dict(project),
+        messages=messages,
+        files=files,
+        username=username
+    )
+
+
 @website_bp.route("/project/website/<int:project_id>/send", methods=["POST"])
 def website_send(project_id):
     """
