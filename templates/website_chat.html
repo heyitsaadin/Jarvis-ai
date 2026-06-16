@@ -98,44 +98,6 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 /* ── AI response block ── */
 .msg-ai{margin-bottom:28px;animation:fadeUp .25s ease both}
 
-/* ── Think block — DeepSeek minimal style ── */
-.think-block{
-  background:var(--surface);
-  border:1px solid var(--border2);
-  border-radius:10px;
-  margin-bottom:14px;
-  overflow:hidden;
-}
-.think-header{
-  display:flex;align-items:center;gap:8px;
-  padding:9px 13px;cursor:pointer;
-  user-select:none;
-}
-.think-spinner{
-  width:13px;height:13px;flex-shrink:0;
-  border:1.8px solid var(--border2);
-  border-top-color:var(--text2);
-  border-radius:50%;
-  animation:spin .8s linear infinite;
-}
-.think-spinner.done{animation:none;border-top-color:var(--border2)}
-@keyframes spin{to{transform:rotate(360deg)}}
-.think-label{font-size:12.5px;font-weight:500;color:var(--text2);flex:1}
-.think-chevron{
-  width:14px;height:14px;stroke:var(--text3);fill:none;
-  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
-  transition:transform .2s;flex-shrink:0;
-}
-.think-block.collapsed .think-chevron{transform:rotate(-90deg)}
-.think-body{
-  padding:2px 13px 11px;
-  font-size:12.5px;line-height:1.7;color:var(--text2);
-  border-top:1px solid var(--border);
-  overflow:hidden;
-}
-.think-block.collapsed .think-body{display:none}
-.think-body p{margin-bottom:3px}
-
 /* ── Real-time code paste block inside chat ── */
 .live-code-block{
   background:var(--code-bg);
@@ -168,14 +130,6 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 }
 .live-code-body::-webkit-scrollbar{height:3px}
 .live-code-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
-.live-code-streaming::after{
-  content:'▌';
-  display:inline-block;
-  color:#7f8c9a;
-  animation:blink .7s steps(1) infinite;
-}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-
 /* ── AI prose ── */
 .msg-ai-text{font-size:14.5px;line-height:1.7;color:var(--text)}
 .msg-ai-text p{margin-bottom:10px}
@@ -648,33 +602,10 @@ async function sendMessage() {
   userRow.innerHTML = `<div class="msg-user-text">${escHtml(msg)}</div>`;
   stream.insertBefore(userRow, document.getElementById('typing'));
 
-  // Think block — unique IDs per message
-  const msgId = Date.now();
-  const thinkBlock = document.createElement('div');
-  thinkBlock.className = 'think-block';
-  thinkBlock.innerHTML = `
-    <div class="think-header" onclick="toggleThink(this.parentElement)">
-      <div class="think-spinner" id="think-spinner-${msgId}"></div>
-      <span class="think-label" id="think-label-${msgId}">Thinking…</span>
-      <svg class="think-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-    </div>
-    <div class="think-body" id="think-body-${msgId}"></div>
-  `;
-  stream.insertBefore(thinkBlock, document.getElementById('typing'));
-
-  // Live code container (shown during streaming, attached after thinkBlock)
-  const liveCodeContainer = document.createElement('div');
-  liveCodeContainer.id = `live-code-${msgId}`;
-  liveCodeContainer.style.marginBottom = '14px';
-  stream.insertBefore(liveCodeContainer, document.getElementById('typing'));
-
-  scrollBottom();
+  // Show typing indicator
   document.getElementById('typing').style.display = 'block';
-
-  let finalData = null;
-  let thinkSteps = [];
-  // Track live code blocks currently being streamed
-  const liveBlocks = {}; // filename -> { el, bodyEl }
+  document.getElementById('typing-label-text').textContent = 'Building your website…';
+  scrollBottom();
 
   try {
     const res = await fetch(`/project/website/${PROJECT_ID}/send`, {
@@ -683,163 +614,66 @@ async function sendMessage() {
       body: JSON.stringify({ message: msg })
     });
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
+    const data = await res.json();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
+    document.getElementById('typing').style.display = 'none';
 
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        let payload;
-        try { payload = JSON.parse(line.slice(6)); } catch { continue; }
-
-        if (payload.checkpoint === 'keepalive') continue;
-
-        // ── Think label / steps ──────────────────────────────
-        if (payload.checkpoint && payload.label) {
-          const lbl = document.getElementById(`think-label-${msgId}`);
-          if (lbl) lbl.textContent = payload.label;
-          thinkSteps.push(payload.label);
-          const tb = document.getElementById(`think-body-${msgId}`);
-          if (tb) tb.innerHTML = thinkSteps.map(s => `<p>• ${escHtml(s)}</p>`).join('');
-          scrollBottom();
-        }
-
-        // ── Live code streaming chunk ────────────────────────
-        // Expected payload: { checkpoint:'code_chunk', filename:'index.html', lang:'html', chunk:'...' }
-        if (payload.checkpoint === 'code_chunk' && payload.filename) {
-          const fname = payload.filename;
-          if (!liveBlocks[fname]) {
-            // Create a new live block for this file
-            const ext = fname.split('.').pop().toLowerCase();
-            const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
-            const blockEl = document.createElement('div');
-            blockEl.className = 'live-code-block';
-            blockEl.innerHTML = `
-              <div class="live-code-header">
-                <span class="live-code-lang">${escHtml(langLabel)}</span>
-                <span class="live-code-filename">${escHtml(fname)}</span>
-                <button class="live-code-copy" onclick="copyLiveCode(this)">
-                  <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  Copy
-                </button>
-              </div>
-              <div class="live-code-body live-code-streaming"></div>
-            `;
-            liveCodeContainer.appendChild(blockEl);
-            const bodyEl = blockEl.querySelector('.live-code-body');
-            liveBlocks[fname] = { blockEl, bodyEl };
-          }
-          const bodyEl = liveBlocks[fname].bodyEl;
-          bodyEl.textContent += payload.chunk || '';
-          // Auto-scroll code body to bottom
-          bodyEl.scrollTop = bodyEl.scrollHeight;
-          scrollBottom();
-        }
-
-        // ── Complete ─────────────────────────────────────────
-        if (payload.checkpoint === 'complete') {
-          finalData = payload;
-
-          // Stop spinner
-          const spinner = document.getElementById(`think-spinner-${msgId}`);
-          if (spinner) spinner.classList.add('done');
-          const lbl = document.getElementById(`think-label-${msgId}`);
-          if (lbl) lbl.textContent = 'Done thinking';
-
-          // Remove streaming cursor from all live blocks
-          Object.values(liveBlocks).forEach(({ bodyEl }) => {
-            bodyEl.classList.remove('live-code-streaming');
-          });
-
-          // Collapse think block
-          setTimeout(() => { thinkBlock.classList.add('collapsed'); }, 500);
-
-          document.getElementById('typing').style.display = 'none';
-
-          // Build AI prose response (after live code blocks)
-          const aiRow = document.createElement('div');
-          aiRow.className = 'msg-ai';
-
-          let html = '';
-          if (finalData.error && !finalData.message) {
-            html = `<p style="color:#ef4444">${escHtml(finalData.error)}</p>`;
-          } else {
-            const rawText = finalData.message || 'Done!';
-            html = renderAiText(rawText);
-          }
-
-          aiRow.innerHTML = `
-            <div class="msg-ai-text">${html}</div>
-            <div class="msg-actions">
-              <button class="action-btn" onclick="copyText(this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-              <button class="action-btn" title="Good"><svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>
-              <button class="action-btn" title="Bad"><svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>
-              <button class="action-btn regen" title="Regenerate"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg></button>
-            </div>
-          `;
-          // Insert prose AFTER the live code container
-          stream.insertBefore(aiRow, document.getElementById('typing'));
-
-          if (finalData.files && finalData.files.length > 0) {
-            currentFiles = finalData.files;
-            renderFileList(currentFiles);
-            updateFilesBadge(currentFiles.length);
-            document.getElementById('dev-link').style.display = 'flex';
-
-            // If live blocks weren't populated via streaming, fill them now from finalData
-            finalData.files.forEach(f => {
-              if (!liveBlocks[f.filename] && f.content) {
-                const ext = f.filename.split('.').pop().toLowerCase();
-                const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
-                const blockEl = document.createElement('div');
-                blockEl.className = 'live-code-block';
-                blockEl.innerHTML = `
-                  <div class="live-code-header">
-                    <span class="live-code-lang">${escHtml(langLabel)}</span>
-                    <span class="live-code-filename">${escHtml(f.filename)}</span>
-                    <button class="live-code-copy" onclick="copyLiveCode(this)">
-                      <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                      Copy
-                    </button>
-                  </div>
-                  <div class="live-code-body">${escHtml(f.content.slice(0, 2000))}${f.content.length > 2000 ? '\n… (truncated — open Files to view full source)' : ''}</div>
-                `;
-                liveCodeContainer.appendChild(blockEl);
-              }
-            });
-          }
-
-          isSending = false;
-          sendBtn.disabled = !input.value.trim();
-          scrollBottom();
-          reader.cancel();
-          return;
-        }
-      }
+    // Code blocks for each file
+    if (data.files && data.files.length > 0) {
+      const codeContainer = document.createElement('div');
+      codeContainer.style.marginBottom = '14px';
+      data.files.forEach(f => {
+        if (!f.content) return;
+        const ext = f.filename.split('.').pop().toLowerCase();
+        const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
+        const blockEl = document.createElement('div');
+        blockEl.className = 'live-code-block';
+        blockEl.innerHTML = `
+          <div class="live-code-header">
+            <span class="live-code-lang">${escHtml(langLabel)}</span>
+            <span class="live-code-filename">${escHtml(f.filename)}</span>
+            <button class="live-code-copy" onclick="copyLiveCode(this)">
+              <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy
+            </button>
+          </div>
+          <div class="live-code-body">${escHtml(f.content.slice(0, 2000))}${f.content.length > 2000 ? '\n… (truncated — open Files to view full source)' : ''}</div>
+        `;
+        codeContainer.appendChild(blockEl);
+      });
+      stream.insertBefore(codeContainer, document.getElementById('typing'));
     }
 
-    // Stream ended without complete
-    document.getElementById('typing').style.display = 'none';
-    if (!finalData) {
-      const spinner = document.getElementById(`think-spinner-${msgId}`);
-      if (spinner) spinner.classList.add('done');
-      const errRow = document.createElement('div');
-      errRow.className = 'msg-ai';
-      errRow.innerHTML = '<div class="msg-ai-text"><p>No response received. Please try again.</p></div>';
-      stream.insertBefore(errRow, document.getElementById('typing'));
+    // AI prose response
+    const aiRow = document.createElement('div');
+    aiRow.className = 'msg-ai';
+    let html = '';
+    if (data.error && !data.message) {
+      html = `<p style="color:#ef4444">${escHtml(data.error)}</p>`;
+    } else {
+      html = renderAiText(data.message || 'Done!');
+    }
+    aiRow.innerHTML = `
+      <div class="msg-ai-text">${html}</div>
+      <div class="msg-actions">
+        <button class="action-btn" onclick="copyText(this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        <button class="action-btn" title="Good"><svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>
+        <button class="action-btn" title="Bad"><svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>
+        <button class="action-btn regen" title="Regenerate"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg></button>
+      </div>
+    `;
+    stream.insertBefore(aiRow, document.getElementById('typing'));
+
+    // Update file list
+    if (data.files && data.files.length > 0) {
+      currentFiles = data.files;
+      renderFileList(currentFiles);
+      updateFilesBadge(currentFiles.length);
+      document.getElementById('dev-link').style.display = 'flex';
     }
 
   } catch(e) {
     document.getElementById('typing').style.display = 'none';
-    const spinner = document.getElementById(`think-spinner-${msgId}`);
-    if (spinner) spinner.classList.add('done');
     const errRow = document.createElement('div');
     errRow.className = 'msg-ai';
     errRow.innerHTML = '<div class="msg-ai-text"><p>Connection error. Please try again.</p></div>';
@@ -884,7 +718,6 @@ function renderAiText(text) {
   return html;
 }
 
-function toggleThink(el) { el.classList.toggle('collapsed'); }
 
 function copyCode(btn) {
   const code = btn.closest('.code-block').querySelector('.code-body').textContent;

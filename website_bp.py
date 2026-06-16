@@ -6,8 +6,7 @@ Register in app.py with:
     app.register_blueprint(website_bp)
 
 AI Backend: NVIDIA NIM — moonshotai/kimi-k2.6
-Uses SSE streaming to bypass Vercel's 10s serverless timeout.
-Checkpoints are emitted at each stage so the frontend can show progress.
+Uses direct JSON responses — no streaming needed on Railway.
 """
 
 import os
@@ -18,7 +17,7 @@ import zipfile
 from datetime import datetime, timezone, timedelta
 from flask import (
     Blueprint, render_template, request, session,
-    redirect, jsonify, Response, stream_with_context
+    redirect, jsonify, Response
 )
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -262,36 +261,21 @@ Rules:
 - If the user sends a follow-up, look at the current_files context and build upon it."""
 
 
-# ─── SSE helper ──────────────────────────────────────────────────────────────
-
-def _sse(payload: dict) -> str:
-    """Format a dict as an SSE data line."""
-    return f"data: {json.dumps(payload)}\n\n"
-
-
-# ─── Streaming generator ──────────────────────────────────────────────────────
-
-def _stream_kimi(messages, current_files):
+def _call_kimi(messages, current_files):
     """
-    Generator that yields SSE events:
-      checkpoint  →  { checkpoint, label }
-      token       →  { token, chars }
-      done        →  { checkpoint:'done', result: {message, files} }
-      error       →  { error }
+    Direct (non-streaming) call to Kimi K2.6 via NVIDIA NIM.
+    Returns (parsed_dict, error_str).
     """
     api_key = os.environ.get("NVIDIA_API_KEY", "")
     if not api_key:
-        yield _sse({"error": "NVIDIA_API_KEY not set in environment."})
-        return
+        return None, "NVIDIA_API_KEY not set in environment."
 
-    # ── Build files context ──────────────────────────────────────────────────
     files_context = ""
     if current_files:
         files_context = "\n\nCURRENT FILES IN PROJECT:\n"
         for f in current_files:
             files_context += f"\n--- {f['filename']} ---\n{f['content']}\n"
 
-    # ── Build message history for API ────────────────────────────────────────
     api_messages = []
     for i, m in enumerate(messages):
         role = "user" if m["sender"] == "You" else "assistant"
@@ -300,83 +284,46 @@ def _stream_kimi(messages, current_files):
             content = content + files_context
         api_messages.append({"role": role, "content": content})
 
-    # ── Checkpoint 1: Starting ───────────────────────────────────────────────
-    yield _sse({"checkpoint": "thinking", "label": "🧠 Kimi K2.6 is planning your website…"})
-
-    full_text = ""
     try:
         client = _nvidia_client()
-        stream = client.chat.completions.create(
+        response = client.chat.completions.create(
             model="moonshotai/kimi-k2.6",
             messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
             max_tokens=8192,
             temperature=0.3,
             top_p=0.95,
-            stream=True,
+            stream=False,
         )
-
-        files_checkpoint_sent = False
-        char_count = 0
-
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content or ""
-            if not delta:
-                continue
-
-            full_text += delta
-            char_count += len(delta)
-
-            # ── Checkpoint 2: once "files" key appears ───────────────────────
-            if not files_checkpoint_sent and '"files"' in full_text:
-                files_checkpoint_sent = True
-                yield _sse({"checkpoint": "writing", "label": "✍️ Writing your files…"})
-
-            yield _sse({"token": delta, "chars": char_count})
-
-        # ── Checkpoint 3: Parsing ────────────────────────────────────────────
-        yield _sse({"checkpoint": "parsing", "label": "⚙️ Processing response…"})
-
-        raw = full_text.strip()
-
-        # Strip markdown fences if model wraps response
+        raw = response.choices[0].message.content.strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw
             raw = raw.rsplit("```", 1)[0].strip()
-
-        # Handle bare "json" prefix
         if raw.startswith("json"):
             raw = raw[4:].strip()
-
-        parsed = json.loads(raw)
-
-        # ── Checkpoint 4: Done ───────────────────────────────────────────────
-        yield _sse({"checkpoint": "done", "result": parsed})
-
+        return json.loads(raw), None
     except json.JSONDecodeError as e:
-        yield _sse({"error": f"AI returned invalid JSON: {str(e)}. Raw length: {len(full_text)} chars."})
+        return None, f"AI returned invalid JSON: {str(e)}"
     except Exception as e:
-        yield _sse({"error": str(e)})
+        return None, str(e)
 
 
-# ─── Groq streaming generator ────────────────────────────────────────────────
+# ─── Groq direct call ────────────────────────────────────────────────────────
 
-def _stream_groq(messages, current_files):
+def _call_groq(messages, current_files):
     """
-    Same SSE contract as _stream_kimi but routes to Groq (llama-3.3-70b-versatile).
+    Direct (non-streaming) call to Groq (llama-3.3-70b-versatile).
+    Returns (parsed_dict, error_str).
     """
     api_key = os.environ.get("GROQ_API_KEY", "")
     if not api_key:
-        yield _sse({"error": "GROQ_API_KEY not set in environment."})
-        return
+        return None, "GROQ_API_KEY not set in environment."
 
-    # ── Build files context ──────────────────────────────────────────────────
     files_context = ""
     if current_files:
         files_context = "\n\nCURRENT FILES IN PROJECT:\n"
         for f in current_files:
             files_context += f"\n--- {f['filename']} ---\n{f['content']}\n"
 
-    # ── Build message history for API ────────────────────────────────────────
     api_messages = []
     for i, m in enumerate(messages):
         role = "user" if m["sender"] == "You" else "assistant"
@@ -385,93 +332,36 @@ def _stream_groq(messages, current_files):
             content = content + files_context
         api_messages.append({"role": role, "content": content})
 
-    # ── Checkpoint 1: Starting ───────────────────────────────────────────────
-    yield _sse({"checkpoint": "thinking", "label": "⚡ Groq is planning your website…"})
-
-    full_text = ""
     try:
         client = _groq_client()
-        stream = client.chat.completions.create(
+        response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
             max_tokens=8192,
             temperature=0.3,
             top_p=0.95,
-            stream=True,
+            stream=False,
         )
-
-        files_checkpoint_sent = False
-        char_count = 0
-
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content or ""
-            if not delta:
-                continue
-
-            full_text += delta
-            char_count += len(delta)
-
-            if not files_checkpoint_sent and '"files"' in full_text:
-                files_checkpoint_sent = True
-                yield _sse({"checkpoint": "writing", "label": "✍️ Writing your files…"})
-
-            yield _sse({"token": delta, "chars": char_count})
-
-        # ── Checkpoint 3: Parsing ────────────────────────────────────────────
-        yield _sse({"checkpoint": "parsing", "label": "⚙️ Processing response…"})
-
-        raw = full_text.strip()
-
+        raw = response.choices[0].message.content.strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1] if "\n" in raw else raw
             raw = raw.rsplit("```", 1)[0].strip()
-
         if raw.startswith("json"):
             raw = raw[4:].strip()
-
-        parsed = json.loads(raw)
-
-        yield _sse({"checkpoint": "done", "result": parsed})
-
+        return json.loads(raw), None
     except json.JSONDecodeError as e:
-        yield _sse({"error": f"AI returned invalid JSON: {str(e)}. Raw length: {len(full_text)} chars."})
+        return None, f"AI returned invalid JSON: {str(e)}"
     except Exception as e:
-        yield _sse({"error": str(e)})
+        return None, str(e)
 
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
-@website_bp.route("/project/website/<int:project_id>")
-def website_editor(project_id):
-    if "user" not in session:
-        return redirect("/")
-    username = session["user"]
-    project = _get_project(project_id, username)
-    if not project:
-        return redirect("/landing")
-    messages = _get_chat(project_id, username)
-    files = _get_files(project_id, username)
-    return render_template(
-        "website_chat.html",
-        project=dict(project),
-        messages=messages,
-        files=files,
-        username=username
-    )
-
-
 @website_bp.route("/project/website/<int:project_id>/send", methods=["POST"])
 def website_send(project_id):
     """
-    Streams the AI response back as SSE events.
-    Consume with fetch + ReadableStream on the frontend (not EventSource — this is POST).
-    Checkpoints emitted:
-      thinking  → model started
-      writing   → "files" key spotted in stream
-      parsing   → stream done, parsing JSON
-      done      → parsed OK (result payload included)
-      saving    → DB writes in progress
-      complete  → all done, updated file list included
+    Direct JSON response — no SSE streaming.
+    Returns JSON with { message, files, error }.
     """
     if "user" not in session:
         return jsonify({"error": "not_logged_in"}), 401
@@ -486,83 +376,46 @@ def website_send(project_id):
     if not raw_msg:
         return jsonify({"error": "empty"}), 400
 
-    # ── Detect @groq prefix ───────────────────────────────────────────────────
+    # Detect @groq prefix
     use_groq = raw_msg.lower().startswith("@groq ")
     user_msg = raw_msg[6:].strip() if use_groq else raw_msg
 
     messages = _get_chat(project_id, username)
     current_files = _get_files(project_id, username)
-    # Store the clean message (without @groq prefix) in chat history
     messages.append({"sender": "You", "text": user_msg})
 
-    def generate():
-        result = None
-        error = None
+    # Call chosen backend directly
+    call_fn = _call_groq if use_groq else _call_kimi
+    result, error = call_fn(messages, current_files)
 
-        # ── Stream from chosen backend ───────────────────────────────────────
-        stream_fn = _stream_groq if use_groq else _stream_kimi
-        for line in stream_fn(messages, current_files):
-            yield line
+    if result:
+        ai_message = result.get("message", "Done! Here's what I built.")
+        new_files = result.get("files", [])
 
-            if line.startswith("data: "):
-                try:
-                    payload = json.loads(line[6:])
-                    if "result" in payload:
-                        result = payload["result"]
-                    if "error" in payload:
-                        error = payload["error"]
-                except Exception:
-                    pass
+        for f in new_files:
+            fname = f.get("filename", "").strip()
+            fcontent = f.get("content", "")
+            if fname and fcontent:
+                _save_file(project_id, username, fname, fcontent)
 
-        # ── Checkpoint 5: Saving to DB ───────────────────────────────────────
-        yield _sse({"checkpoint": "saving", "label": "💾 Saving files to database…"})
-        # Explicit flush hint — yield a keep-alive so the client receives the
-        # saving checkpoint before we block on DB writes
-        yield _sse({"checkpoint": "keepalive"})
+        if new_files:
+            all_files = _get_files(project_id, username)
+            _save_version(project_id, username, all_files)
 
-        if result:
-            ai_message = result.get("message", "Done! Here's what I built.")
-            new_files = result.get("files", [])
+        messages.append({"sender": "Mia", "text": ai_message})
+    else:
+        err_text = error or "Something went wrong."
+        ai_message = f"Sorry, something went wrong: {err_text}"
+        messages.append({"sender": "Mia", "text": ai_message})
 
-            for f in new_files:
-                fname = f.get("filename", "").strip()
-                fcontent = f.get("content", "")
-                if fname and fcontent:
-                    _save_file(project_id, username, fname, fcontent)
+    _save_chat(project_id, username, messages)
+    updated_files = _get_files(project_id, username)
 
-            if new_files:
-                all_files = _get_files(project_id, username)
-                _save_version(project_id, username, all_files)
-
-            messages.append({"sender": "Mia", "text": ai_message})
-        else:
-            err_text = error or "Something went wrong."
-            ai_message = f"Sorry, something went wrong: {err_text}"
-            messages.append({"sender": "Mia", "text": ai_message})
-
-        _save_chat(project_id, username, messages)
-
-        # ── Checkpoint 6: All done ───────────────────────────────────────────
-        updated_files = _get_files(project_id, username)
-        yield _sse({
-            "checkpoint": "complete",
-            "message": ai_message,
-            "files": updated_files,
-            "error": error,
-        })
-        # Final newline to ensure the client's reader flushes the last event
-        yield "\n"
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-        }
-    )
-
+    return jsonify({
+        "message": ai_message,
+        "files": updated_files,
+        "error": error,
+    }), 200
 
 @website_bp.route("/project/website/<int:project_id>/files")
 def website_files(project_id):
