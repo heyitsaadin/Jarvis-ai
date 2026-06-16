@@ -5,7 +5,7 @@ Register in app.py with:
     from website_bp import website_bp
     app.register_blueprint(website_bp)
 
-AI Backend: NVIDIA NIM — moonshotai/kimi-k2.6
+AI Backend: NVIDIA NIM — deepseek-ai/deepseek-v4-flash
 Uses direct JSON responses — no streaming needed on Railway.
 """
 
@@ -263,7 +263,7 @@ Rules:
 
 def _call_kimi(messages, current_files):
     """
-    Direct (non-streaming) call to Kimi K2.6 via NVIDIA NIM.
+    Direct (non-streaming) call to DeepSeek V4 Flash via NVIDIA NIM.
     Returns (parsed_dict, error_str).
     """
     api_key = os.environ.get("NVIDIA_API_KEY", "")
@@ -287,10 +287,10 @@ def _call_kimi(messages, current_files):
     try:
         client = _nvidia_client()
         response = client.chat.completions.create(
-            model="moonshotai/kimi-k2.6",
+            model="deepseek-ai/deepseek-v4-flash",
             messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
-            max_tokens=8192,
-            temperature=0.3,
+            max_tokens=16384,
+            temperature=1,
             top_p=0.95,
             stream=False,
         )
