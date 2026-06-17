@@ -620,9 +620,7 @@ def website_send_stream(project_id):
             try:
                 groq_api_key = os.environ.get("GROQ_API_KEY", "")
                 if groq_api_key:
-                    yield f"data: {json.dumps({'chunk': ''})}
-
-"  # keep stream alive
+                    yield "data: " + json.dumps({"chunk": ""}) + "\n\n"
                     fb_client = _groq_client()
                     fb_resp = fb_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
