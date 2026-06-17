@@ -194,6 +194,43 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 .action-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .action-btn.regen{margin-left:auto}
 
+/* ── Process checkpoints ── */
+.checkpoint-strip{
+  display:flex;flex-direction:column;gap:5px;
+  margin:4px 0 8px;
+}
+.checkpoint{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:11.5px;font-weight:600;font-family:monospace;
+  padding:4px 10px 4px 8px;border-radius:20px;
+  width:fit-content;
+  transition:background .2s,color .2s;
+}
+.checkpoint.writing{
+  background:var(--surface2);color:var(--text2);
+  border:1px solid var(--border2);
+}
+.checkpoint.done{
+  background:rgba(34,197,94,.1);color:#16a34a;
+  border:1px solid rgba(34,197,94,.2);
+}
+[data-theme="dark"] .checkpoint.done{
+  background:rgba(34,197,94,.08);color:#4ade80;
+  border-color:rgba(34,197,94,.15);
+}
+.checkpoint.error{
+  background:rgba(239,68,68,.08);color:#ef4444;
+  border:1px solid rgba(239,68,68,.15);
+}
+.cp-icon{font-size:12px;line-height:1}
+.cp-spinner{
+  width:10px;height:10px;border-radius:50%;
+  border:1.5px solid var(--text3);
+  border-top-color:var(--text2);
+  animation:spin .7s linear infinite;flex-shrink:0;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 /* ── Typing indicator ── */
 #typing{display:none;margin-bottom:16px;animation:fadeUp .25s ease both;padding:0 2px}
 .typing-row{display:flex;align-items:center;gap:8px}
@@ -400,9 +437,17 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
       <div id="project-name">{{ project.name }}</div>
       <div id="project-sub">Website Builder</div>
     </div>
-    <button class="topbar-btn" onclick="if(confirm('Start new chat? History stays saved.'))location.reload()" aria-label="New chat">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-    </button>
+    <div style="display:flex;align-items:center;gap:4px">
+      <!-- Dark mode toggle -->
+      <button class="topbar-btn" id="dark-toggle" onclick="toggleDark()" aria-label="Toggle dark mode">
+        <svg id="dark-icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="dark-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <!-- New chat -->
+      <button class="topbar-btn" onclick="if(confirm('Start new chat? History stays saved.'))location.reload()" aria-label="New chat">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      </button>
+    </div>
   </div>
 
   <!-- CHAT -->
@@ -550,6 +595,24 @@ const PROJECT_ID = {{ project.id }};
 let currentFiles = {{ files | tojson }};
 let isSending = false;
 
+// ── Dark mode ──────────────────────────────────────────────────
+function _syncDarkIcons() {
+  const isDark = document.documentElement.hasAttribute('data-theme');
+  document.getElementById('dark-icon-moon').style.display = isDark ? 'block' : 'none';
+  document.getElementById('dark-icon-sun').style.display  = isDark ? 'none'  : 'block';
+}
+function toggleDark() {
+  if (document.documentElement.hasAttribute('data-theme')) {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.removeItem('theme-dark');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('theme-dark', '1');
+  }
+  _syncDarkIcons();
+}
+_syncDarkIcons();
+
 if (typeof marked !== 'undefined') {
   marked.setOptions({ breaks: true, gfm: true });
 }
@@ -586,19 +649,23 @@ function useChip(el) {
 
 // Tracks the live-writing state across SSE chunks
 const liveState = {
-  accumulated: '',       // full raw JSON so far
-  codeContainer: null,   // the div holding live-code-block elements
-  blocks: {},            // filename → { bodyEl, fullText, truncated }
-  currentFile: null,     // filename currently being written into
-  inContent: false,      // are we inside a "content": "..." value?
-  escapeNext: false,     // was last char a backslash?
-  stream: null,          // reference to #chat-stream
+  accumulated: '',           // full raw JSON so far
+  codeContainer: null,       // the div holding live-code-block elements
+  checkpointStrip: null,     // the div holding checkpoint pills
+  checkpoints: {},           // filename → checkpoint element
+  blocks: {},                // filename → { bodyEl, fullText, truncated }
+  currentFile: null,         // filename currently being written into
+  inContent: false,          // are we inside a "content": "..." value?
+  escapeNext: false,         // was last char a backslash?
+  stream: null,              // reference to #chat-stream
 };
 
 function _liveReset() {
   Object.assign(liveState, {
     accumulated: '',
     codeContainer: null,
+    checkpointStrip: null,
+    checkpoints: {},
     blocks: {},
     currentFile: null,
     inContent: false,
@@ -651,6 +718,18 @@ function _ensureBlock(filename) {
 
   const ext = filename.split('.').pop().toLowerCase();
   const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
+
+  // Add "writing" checkpoint pill
+  if (liveState.checkpointStrip && !liveState.checkpoints[filename]) {
+    const basename = filename.includes('/') ? filename.split('/').pop() : filename;
+    const pill = document.createElement('div');
+    pill.className = 'checkpoint writing';
+    pill.innerHTML = `<span class="cp-spinner"></span><span>Writing ${escHtml(basename)}…</span>`;
+    liveState.checkpointStrip.appendChild(pill);
+    liveState.checkpoints[filename] = pill;
+    const w = document.getElementById('chat-wrap');
+    if (w.scrollHeight - w.scrollTop - w.clientHeight < 140) w.scrollTop = w.scrollHeight;
+  }
 
   const blockEl = document.createElement('div');
   blockEl.className = 'live-code-block';
@@ -733,6 +812,25 @@ function _flushContent() {
 // Called when done event arrives — replace live blocks with final file data
 function _liveFinalize(files) {
   if (!liveState.codeContainer) return;
+
+  // Mark all checkpoint pills as done
+  files.forEach(f => {
+    const pill = liveState.checkpoints[f.filename];
+    if (pill) {
+      const basename = f.filename.includes('/') ? f.filename.split('/').pop() : f.filename;
+      pill.className = 'checkpoint done';
+      pill.innerHTML = `<span class="cp-icon">✓</span><span>${escHtml(basename)} saved</span>`;
+    }
+  });
+
+  // Add a final "all done" summary pill
+  if (liveState.checkpointStrip && files.length > 0) {
+    const summary = document.createElement('div');
+    summary.className = 'checkpoint done';
+    summary.innerHTML = `<span class="cp-icon">✦</span><span>${files.length} file${files.length > 1 ? 's' : ''} created — open Files to view</span>`;
+    liveState.checkpointStrip.appendChild(summary);
+  }
+
   // Clear and re-render with final content (respects truncation)
   liveState.codeContainer.innerHTML = '';
   files.forEach(f => {
@@ -777,9 +875,16 @@ async function sendMessage() {
   userRow.innerHTML = `<div class="msg-user-text">${escHtml(msg)}</div>`;
   chatStream.insertBefore(userRow, typingEl);
 
-  // Code container (appears immediately, fills as stream arrives)
+  // Code container + checkpoint strip (appear immediately, fill as stream arrives)
   _liveReset();
   liveState.stream = chatStream;
+
+  // Checkpoint strip sits above the code blocks
+  const checkpointStrip = document.createElement('div');
+  checkpointStrip.className = 'checkpoint-strip';
+  chatStream.insertBefore(checkpointStrip, typingEl);
+  liveState.checkpointStrip = checkpointStrip;
+
   const codeContainer = document.createElement('div');
   codeContainer.style.marginBottom = '14px';
   chatStream.insertBefore(codeContainer, typingEl);
@@ -831,6 +936,18 @@ async function sendMessage() {
                 renderFileList(currentFiles);
                 updateFilesBadge(currentFiles.length);
                 document.getElementById('dev-link').style.display = 'flex';
+
+                // Re-fetch from server to ensure drawer reflects saved state
+                fetch(`/project/website/${PROJECT_ID}/files`)
+                  .then(r => r.json())
+                  .then(d => {
+                    if (d.files && d.files.length) {
+                      currentFiles = d.files;
+                      renderFileList(currentFiles);
+                      updateFilesBadge(currentFiles.length);
+                    }
+                  })
+                  .catch(() => {});
               } else if (codeContainer.children.length === 0) {
                 codeContainer.remove();
               }
@@ -866,7 +983,20 @@ async function sendMessage() {
 
             } else if (parsed.chunk !== undefined) {
               // ── Streaming chunk ───────────────────────────────
-              typingEl.style.display = 'none'; // hide dots once writing starts
+              if (typingEl.style.display !== 'none') {
+                typingEl.style.display = 'none'; // hide dots once writing starts
+                // Show a global "generating" pill until first file is detected
+                if (liveState.checkpointStrip && liveState.checkpointStrip.children.length === 0) {
+                  const startPill = document.createElement('div');
+                  startPill.className = 'checkpoint writing';
+                  startPill.id = 'cp-start';
+                  startPill.innerHTML = `<span class="cp-spinner"></span><span>Generating code…</span>`;
+                  liveState.checkpointStrip.appendChild(startPill);
+                }
+              }
+              // Remove start pill once a real file block appears
+              const startPill = document.getElementById('cp-start');
+              if (startPill && Object.keys(liveState.blocks).length > 0) startPill.remove();
               _liveIngest(parsed.chunk);
             }
           } catch(parseErr) { /* ignore malformed SSE line */ }
