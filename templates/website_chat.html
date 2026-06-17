@@ -98,38 +98,42 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 /* ── AI response block ── */
 .msg-ai{margin-bottom:28px;animation:fadeUp .25s ease both}
 
-/* ── Real-time code paste block inside chat ── */
+/* ── Real-time code block — blends into chat background ── */
 .live-code-block{
-  background:var(--code-bg);
-  border-radius:10px;
-  margin:10px 0;
+  background:transparent;
+  border-radius:0;
+  margin:2px 0 14px;
   overflow:hidden;
-  border:1px solid rgba(255,255,255,.07);
+  border:none;
+  border-left:2px solid var(--border2);
+  padding-left:12px;
   position:relative;
 }
 .live-code-header{
   display:flex;align-items:center;justify-content:space-between;
-  padding:7px 13px;border-bottom:1px solid rgba(255,255,255,.07);
-  background:rgba(255,255,255,.03);
+  padding:0 0 5px 0;
+  background:transparent;
+  border-bottom:none;
 }
-.live-code-lang{font-size:11.5px;font-weight:600;color:#7f8c9a;font-family:monospace;letter-spacing:.3px}
-.live-code-filename{font-size:11px;color:#7f8c9a;font-family:monospace}
+.live-code-lang{font-size:10.5px;font-weight:700;color:var(--text3);font-family:monospace;letter-spacing:.5px;text-transform:uppercase}
+.live-code-filename{font-size:11px;color:var(--text3);font-family:monospace}
 .live-code-copy{
-  font-size:11px;font-weight:600;color:#7f8c9a;
+  font-size:11px;font-weight:600;color:var(--text3);
   background:none;border:none;cursor:pointer;
   display:flex;align-items:center;gap:4px;padding:2px 0;
-  transition:color .15s;
+  transition:color .15s;opacity:.7;
 }
-.live-code-copy:hover{color:#a0adb8}
-.live-code-copy svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.live-code-copy:hover{opacity:1;color:var(--text2)}
+.live-code-copy svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .live-code-body{
-  padding:12px 14px;overflow-x:auto;
+  padding:0;overflow-x:auto;
   font-family:'Courier New',Courier,monospace;
-  font-size:12px;line-height:1.7;color:var(--code-fg);
-  white-space:pre;tab-size:2;max-height:260px;
+  font-size:12px;line-height:1.75;color:var(--text2);
+  white-space:pre;tab-size:2;max-height:none;
+  opacity:.85;
 }
 .live-code-body::-webkit-scrollbar{height:3px}
-.live-code-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+.live-code-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 /* ── AI prose ── */
 .msg-ai-text{font-size:14.5px;line-height:1.7;color:var(--text)}
 .msg-ai-text p{margin-bottom:10px}
@@ -268,19 +272,21 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
   background:var(--bg);flex-shrink:0;
 }
 #input-wrap{
-  display:flex;align-items:flex-end;gap:8px;
+  display:flex;align-items:center;gap:8px;
   background:var(--surface);border:1px solid var(--border2);
-  border-radius:22px;padding:8px 8px 8px 16px;
+  border-radius:22px;padding:10px 8px 10px 16px;
   transition:border-color .2s;
 }
 #input-wrap:focus-within{border-color:var(--text3)}
 #chat-input{
   flex:1;background:none;border:none;outline:none;
   font-size:14.5px;color:var(--text);resize:none;
-  line-height:1.5;max-height:120px;min-height:24px;
-  padding:2px 0;font-family:inherit;
+  line-height:1.5;max-height:120px;min-height:22px;
+  padding:0;margin:0;font-family:inherit;
+  vertical-align:middle;
+  display:block;
 }
-#chat-input::placeholder{color:var(--text3)}
+#chat-input::placeholder{color:var(--text3);opacity:1;line-height:inherit}
 #send-btn{
   width:34px;height:34px;border-radius:50%;flex-shrink:0;
   background:var(--accent);border:none;cursor:pointer;
@@ -785,12 +791,8 @@ function _flushContent() {
     } else { decoded += ch; i++; }
   }
 
-  const MAX = 2000;
-  if (decoded.length > MAX && !block.truncated) {
-    block.fullText = decoded.slice(0, MAX);
-    block.bodyEl.textContent = block.fullText + '\n… (truncated — open Files to view full source)';
-    block.truncated = true;
-  } else if (!block.truncated) {
+  // Show full code — no truncation during streaming
+  if (!block.truncated) {
     block.fullText = decoded;
     block.bodyEl.textContent = decoded;
   }
@@ -834,8 +836,7 @@ function _liveFinalize(files) {
       '<button class="live-code-copy" onclick="copyLiveCode(this)">' +
       '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button>' +
       '</div><div class="live-code-body">' +
-      escHtml(f.content.slice(0, 2000)) +
-      (f.content.length > 2000 ? '\n… (truncated — open Files to view full source)' : '') +
+      escHtml(f.content) +
       '</div>';
     liveState.codeContainer.appendChild(blockEl);
   });
