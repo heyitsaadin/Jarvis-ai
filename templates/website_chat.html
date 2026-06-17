@@ -900,24 +900,21 @@ async function sendMessage() {
     const decoder = new TextDecoder();
     let buffer = '';
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-
+    // ── SSE event processor ────────────────────────────────
+    let doneHandled = false;
+    function processSSELines(lines) {
       let eventType = 'message';
       for (const line of lines) {
         if (line.startsWith('event: ')) {
           eventType = line.slice(7).trim();
         } else if (line.startsWith('data: ')) {
-          const payload = line.slice(6);
+          const payload = line.slice(6).trim();
+          if (!payload) { eventType = 'message'; continue; }
           try {
             const parsed = JSON.parse(payload);
 
-            if (eventType === 'done') {
+            if (eventType === 'done' && !doneHandled) {
+              doneHandled = true;
               typingEl.style.display = 'none';
 
               if (parsed.files && parsed.files.length > 0) {
@@ -926,34 +923,32 @@ async function sendMessage() {
                 renderFileList(currentFiles);
                 updateFilesBadge(currentFiles.length);
                 document.getElementById('dev-link').style.display = 'flex';
-
                 // Re-fetch from server to confirm saved state
                 fetch('/project/website/' + PROJECT_ID + '/files')
                   .then(r => r.json())
-                  .then(d => {
-                    if (d.files && d.files.length) {
-                      currentFiles = d.files;
-                      renderFileList(currentFiles);
-                      updateFilesBadge(currentFiles.length);
-                    }
-                  })
+                  .then(d => { if (d.files && d.files.length) { currentFiles = d.files; renderFileList(currentFiles); updateFilesBadge(currentFiles.length); } })
                   .catch(() => {});
-              } else if (codeContainer.children.length === 0) {
-                codeContainer.remove();
+              } else {
+                // No files — remove empty containers
+                if (liveState.codeContainer && liveState.codeContainer.children.length === 0) {
+                  liveState.codeContainer.remove();
+                }
+                if (liveState.thoughtLog && liveState.thoughtLog.children.length === 0) {
+                  liveState.thoughtLog.remove();
+                }
               }
 
-              // AI prose
+              // AI prose response
               const aiRow = document.createElement('div');
               aiRow.className = 'msg-ai';
-              let html = '';
+              let aiHtml = '';
               if (parsed.error && !parsed.message) {
-                html = '<p style="color:#ef4444">' + escHtml(parsed.error) + '</p>';
-                // Mark last active step as error if any
+                aiHtml = '<p style="color:#ef4444">' + escHtml(parsed.error) + '</p>';
                 if (liveState.globalStep) _stepDone(liveState.globalStep, 'Something went wrong');
               } else {
-                html = renderAiText(parsed.message || 'Done!');
+                aiHtml = renderAiText(parsed.message || 'Done!');
               }
-              aiRow.innerHTML = '<div class="msg-ai-text">' + html + '</div>' +
+              aiRow.innerHTML = '<div class="msg-ai-text">' + aiHtml + '</div>' +
                 '<div class="msg-actions">' +
                 '<button class="action-btn" onclick="copyText(this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>' +
                 '<button class="action-btn" title="Good"><svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>' +
@@ -965,7 +960,7 @@ async function sendMessage() {
 
             } else if (eventType === 'error') {
               typingEl.style.display = 'none';
-              codeContainer.remove();
+              if (liveState.codeContainer) liveState.codeContainer.remove();
               if (liveState.globalStep) _stepDone(liveState.globalStep, 'Request failed');
               const errRow = document.createElement('div');
               errRow.className = 'msg-ai';
@@ -973,19 +968,44 @@ async function sendMessage() {
               chatStream.insertBefore(errRow, typingEl);
 
             } else if (parsed.chunk !== undefined) {
-              // First chunk: upgrade "Thinking" step to "Writing code"
-              if (typingEl.style.display !== 'none') {
-                typingEl.style.display = 'none';
-              }
-              if (liveState.globalStep && liveState.globalStep.className.includes('ts-active') && Object.keys(liveState.blocks).length === 0) {
+              // Hide typing dots on first chunk
+              typingEl.style.display = 'none';
+              // Upgrade "Thinking" → "Plan ready" once (only before any file blocks appear)
+              if (liveState.globalStep && liveState.globalStep.className.includes('ts-active')) {
                 _stepDone(liveState.globalStep, 'Plan ready — writing files');
               }
               _liveIngest(parsed.chunk);
             }
-          } catch(parseErr) { /* ignore malformed SSE */ }
+          } catch(parseErr) { /* ignore malformed SSE line */ }
           eventType = 'message';
         }
       }
+    }
+
+    while (true) {
+      const { done: streamDone, value } = await reader.read();
+      if (streamDone) {
+        // Flush any remaining buffer when stream closes
+        if (buffer.trim()) {
+          const remaining = buffer.split('\n');
+          processSSELines(remaining);
+        }
+        // Safety net: if done event never fired, clean up
+        if (!doneHandled) {
+          typingEl.style.display = 'none';
+          if (liveState.codeContainer && liveState.codeContainer.children.length === 0) {
+            liveState.codeContainer.remove();
+          }
+          if (liveState.thoughtLog && liveState.thoughtLog.children.length === 0) {
+            liveState.thoughtLog.remove();
+          }
+        }
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      processSSELines(lines);
     }
 
   } catch(e) {

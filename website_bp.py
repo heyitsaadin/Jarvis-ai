@@ -258,7 +258,67 @@ Rules:
 - Make the website look modern, mobile-responsive, and visually impressive.
 - When the user asks to update/change something, update only the relevant files and return ALL files (unchanged ones too).
 - Never return partial files. Always return the complete file content.
-- If the user sends a follow-up, look at the current_files context and build upon it."""
+- If the user sends a follow-up, look at the current_files context and build upon it.
+- If the user sends a casual/conversational message (greetings, questions not about building a website, etc.),
+  still respond with valid JSON but with an empty files array:
+  {"message": "your friendly reply here", "files": []}
+  Never return plain text — always return valid JSON."""
+
+
+# ─── Intent check ────────────────────────────────────────────────────────────
+
+CHAT_KEYWORDS = {
+    "hi", "hey", "hello", "hola", "yo", "sup", "wassup", "whats up", "what's up",
+    "how are you", "how r u", "u good", "you good", "how do you do",
+    "good morning", "good evening", "good night", "gm", "gn",
+    "thanks", "thank you", "thx", "ty", "np", "no problem", "ok", "okay", "k",
+    "lol", "lmao", "haha", "nice", "cool", "great", "awesome", "wow",
+    "bye", "goodbye", "cya", "see you", "later",
+    "who are you", "what are you", "what can you do",
+    "yes", "no", "yep", "nope", "sure", "maybe",
+}
+
+def _is_chat_message(msg: str) -> bool:
+    """Return True if msg looks like casual chat rather than a website request."""
+    clean = msg.strip().lower().rstrip("!?.,'")
+    # Short messages (≤4 words) that match known chat phrases
+    words = clean.split()
+    if len(words) <= 6 and clean in CHAT_KEYWORDS:
+        return True
+    # Very short messages with no web-related words are likely chat
+    web_hints = {"website", "site", "page", "build", "create", "make", "design",
+                 "html", "css", "js", "landing", "portfolio", "blog", "shop",
+                 "update", "change", "add", "remove", "fix", "style", "color",
+                 "layout", "section", "navbar", "footer", "header", "button",
+                 "form", "image", "font", "dark", "light", "animation", "menu"}
+    has_web_hint = any(w in web_hints for w in words)
+    if len(words) <= 3 and not has_web_hint:
+        return True
+    return False
+
+
+def _chat_reply(msg: str) -> str:
+    """Generate a quick conversational reply without touching the website AI."""
+    low = msg.strip().lower().rstrip("!?.,")
+    greetings = {"hi", "hey", "hello", "hola", "yo", "sup", "wassup",
+                 "whats up", "what's up", "gm", "good morning", "good evening"}
+    how_are = {"how are you", "how r u", "u good", "you good", "how do you do",
+               "you ok", "u ok"}
+    thanks   = {"thanks", "thank you", "thx", "ty"}
+    bye      = {"bye", "goodbye", "cya", "see you", "later", "gn", "good night"}
+    who      = {"who are you", "what are you", "what can you do"}
+
+    if low in greetings:
+        return "Hey! 👋 Ready to build something great. What kind of website do you have in mind?"
+    if low in how_are:
+        return "Doing great, thanks for asking! 😊 Ready to build whenever you are. What website can I create for you?"
+    if low in thanks:
+        return "You're welcome! Let me know if you want to tweak anything or build something new."
+    if low in bye:
+        return "See you! Come back anytime to keep building. 👋"
+    if low in who:
+        return "I'm Mia, your AI website builder! Describe any website — landing page, portfolio, blog, shop — and I'll generate the code instantly."
+    return "I'm your website builder — describe a site you'd like and I'll create it for you! 🚀"
 
 
 def _call_kimi(messages, current_files):
@@ -401,6 +461,15 @@ def website_send(project_id):
 
     messages = _get_chat(project_id, username)
     current_files = _get_files(project_id, username)
+
+    # ── Intent check ──────────────────────────────────────────────────────────
+    if not use_groq and _is_chat_message(user_msg):
+        reply = _chat_reply(user_msg)
+        messages.append({"sender": "You", "text": user_msg})
+        messages.append({"sender": "Mia", "text": reply})
+        _save_chat(project_id, username, messages)
+        return jsonify({"message": reply, "files": [], "error": None}), 200
+
     messages.append({"sender": "You", "text": user_msg})
 
     # Call chosen backend directly
@@ -462,6 +531,22 @@ def website_send_stream(project_id):
 
     messages = _get_chat(project_id, username)
     current_files = _get_files(project_id, username)
+
+    # ── Intent check: short-circuit casual chat without hitting website AI ──
+    if not use_groq and _is_chat_message(user_msg):
+        reply = _chat_reply(user_msg)
+        messages.append({"sender": "You", "text": user_msg})
+        messages.append({"sender": "Mia", "text": reply})
+        _save_chat(project_id, username, messages)
+        done_payload = json.dumps({"message": reply, "files": [], "error": None})
+        def _chat_stream():
+            yield f"event: done\ndata: {done_payload}\n\n"
+        return Response(
+            _chat_stream(),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     messages.append({"sender": "You", "text": user_msg})
 
     # Build API messages list
@@ -529,8 +614,29 @@ def website_send_stream(project_id):
         # ── Parse + save ──────────────────────────────────────────
         result = None
         parse_error = None
+
+        # If accumulated is empty, the primary AI returned nothing — fallback to Groq
+        if not accumulated.strip() and not use_groq:
+            try:
+                groq_api_key = os.environ.get("GROQ_API_KEY", "")
+                if groq_api_key:
+                    yield f"data: {json.dumps({'chunk': ''})}
+
+"  # keep stream alive
+                    fb_client = _groq_client()
+                    fb_resp = fb_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
+                        max_tokens=8192, temperature=0.3, top_p=0.95, stream=False,
+                    )
+                    accumulated = fb_resp.choices[0].message.content.strip()
+            except Exception as fb_e:
+                parse_error = f"Fallback also failed: {str(fb_e)}"
+
         try:
             raw = accumulated.strip()
+            if not raw:
+                raise json.JSONDecodeError("Empty response from AI", "", 0)
             if raw.startswith("```"):
                 raw = raw.split("\n", 1)[1] if "\n" in raw else raw
                 raw = raw.rsplit("```", 1)[0].strip()
