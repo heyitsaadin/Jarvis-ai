@@ -657,10 +657,13 @@ def website_send_stream(project_id):
                 _save_version(project_id, username, all_files)
             messages.append({"sender": "Mia", "text": ai_message})
             _save_chat(project_id, username, messages)
+            # Send file metadata only (no content) — frontend fetches full files via /files
             updated_files = _get_files(project_id, username)
+            file_meta = [{"filename": f["filename"]} for f in updated_files]
             done_payload = json.dumps({
                 "message": ai_message,
-                "files": updated_files,
+                "files": file_meta,
+                "has_files": len(file_meta) > 0,
                 "error": None,
             })
         else:
