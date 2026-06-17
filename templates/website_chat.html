@@ -155,9 +155,8 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
 .live-code-body{
   padding:0;overflow-x:auto;
   font-family:'Courier New',Courier,monospace;
-  font-size:12px;line-height:1.75;color:var(--text2);
+  font-size:12px;line-height:1.75;color:var(--text);
   white-space:pre;tab-size:2;max-height:none;
-  opacity:.85;
 }
 .live-code-body::-webkit-scrollbar{height:3px}
 .live-code-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
@@ -295,8 +294,8 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
 /* ── Input dock ── */
 #input-dock{
   padding:8px 14px calc(10px + var(--safe-b));
-  border-top:1px solid var(--border);
-  background:var(--bg);flex-shrink:0;
+  border-top:none;
+  background:none;flex-shrink:0;
 }
 #input-wrap{
   display:flex;align-items:center;gap:8px;
