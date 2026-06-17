@@ -194,40 +194,36 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 .action-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .action-btn.regen{margin-left:auto}
 
-/* ── Process checkpoints ── */
-.checkpoint-strip{
-  display:flex;flex-direction:column;gap:5px;
-  margin:4px 0 8px;
+/* ── Thought process log ── */
+.thought-log{
+  margin:0 0 16px;
+  border-left:2px solid var(--border2);
+  padding-left:14px;
+  display:flex;flex-direction:column;gap:0;
 }
-.checkpoint{
-  display:inline-flex;align-items:center;gap:7px;
-  font-size:11.5px;font-weight:600;font-family:monospace;
-  padding:4px 10px 4px 8px;border-radius:20px;
-  width:fit-content;
-  transition:background .2s,color .2s;
+.thought-step{
+  display:flex;align-items:flex-start;gap:9px;
+  padding:6px 0;
+  font-size:13px;line-height:1.45;
+  animation:fadeUp .2s ease both;
 }
-.checkpoint.writing{
-  background:var(--surface2);color:var(--text2);
-  border:1px solid var(--border2);
-}
-.checkpoint.done{
-  background:rgba(34,197,94,.1);color:#16a34a;
-  border:1px solid rgba(34,197,94,.2);
-}
-[data-theme="dark"] .checkpoint.done{
-  background:rgba(34,197,94,.08);color:#4ade80;
-  border-color:rgba(34,197,94,.15);
-}
-.checkpoint.error{
-  background:rgba(239,68,68,.08);color:#ef4444;
-  border:1px solid rgba(239,68,68,.15);
-}
-.cp-icon{font-size:12px;line-height:1}
-.cp-spinner{
-  width:10px;height:10px;border-radius:50%;
-  border:1.5px solid var(--text3);
-  border-top-color:var(--text2);
-  animation:spin .7s linear infinite;flex-shrink:0;
+.thought-step.ts-pending{ color:var(--text3); }
+.thought-step.ts-active { color:var(--text); }
+.thought-step.ts-done   { color:var(--text3); }
+.ts-icon{flex-shrink:0;margin-top:1px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;}
+.ts-spinner{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--border2);border-top-color:var(--text2);animation:spin .7s linear infinite;}
+.ts-check{width:14px;height:14px;border-radius:50%;background:rgba(34,197,94,.13);display:flex;align-items:center;justify-content:center;}
+[data-theme="dark"] .ts-check{background:rgba(34,197,94,.09);}
+.ts-check svg{width:8px;height:8px;stroke:#16a34a;stroke-width:2.8;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+[data-theme="dark"] .ts-check svg{stroke:#4ade80;}
+.ts-dot{width:6px;height:6px;border-radius:50%;background:var(--border2);margin:4px auto 0;}
+.ts-label{font-size:13px;font-weight:500;flex:1;}
+.ts-file-tag{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11.5px;font-family:monospace;font-weight:600;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:5px;padding:1px 6px;color:var(--text2);
+  margin-left:4px;vertical-align:middle;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -438,12 +434,10 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
       <div id="project-sub">Website Builder</div>
     </div>
     <div style="display:flex;align-items:center;gap:4px">
-      <!-- Dark mode toggle -->
       <button class="topbar-btn" id="dark-toggle" onclick="toggleDark()" aria-label="Toggle dark mode">
         <svg id="dark-icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         <svg id="dark-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       </button>
-      <!-- New chat -->
       <button class="topbar-btn" onclick="if(confirm('Start new chat? History stays saved.'))location.reload()" aria-label="New chat">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       </button>
@@ -595,7 +589,7 @@ const PROJECT_ID = {{ project.id }};
 let currentFiles = {{ files | tojson }};
 let isSending = false;
 
-// ── Dark mode ──────────────────────────────────────────────────
+// ── Dark mode ─────────────────────────────────────────────────
 function _syncDarkIcons() {
   const isDark = document.documentElement.hasAttribute('data-theme');
   document.getElementById('dark-icon-moon').style.display = isDark ? 'block' : 'none';
@@ -617,7 +611,7 @@ if (typeof marked !== 'undefined') {
   marked.setOptions({ breaks: true, gfm: true });
 }
 
-// ── Input ──────────────────────────────────────────────────────
+// ── Input ─────────────────────────────────────────────────────
 const input   = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
 input.addEventListener('input', () => {
@@ -629,7 +623,7 @@ input.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!sendBtn.disabled) sendMessage(); }
 });
 
-// ── Init ───────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────
 renderFileList(currentFiles);
 updateFilesBadge(currentFiles.length);
 scrollBottom();
@@ -645,105 +639,88 @@ function useChip(el) {
   input.focus();
 }
 
-// ── Live streaming helpers ──────────────────────────────────────
-
-// Tracks the live-writing state across SSE chunks
+// ── Live streaming state ──────────────────────────────────────
 const liveState = {
-  accumulated: '',           // full raw JSON so far
-  codeContainer: null,       // the div holding live-code-block elements
-  checkpointStrip: null,     // the div holding checkpoint pills
-  checkpoints: {},           // filename → checkpoint element
-  blocks: {},                // filename → { bodyEl, fullText, truncated }
-  currentFile: null,         // filename currently being written into
-  inContent: false,          // are we inside a "content": "..." value?
-  escapeNext: false,         // was last char a backslash?
-  stream: null,              // reference to #chat-stream
+  accumulated: '',
+  codeContainer: null,
+  thoughtLog: null,
+  thoughtSteps: {},      // filename → step element
+  globalStep: null,      // the "Generating code" step
+  blocks: {},
+  currentFile: null,
+  inContent: false,
+  stream: null,
 };
 
 function _liveReset() {
   Object.assign(liveState, {
     accumulated: '',
     codeContainer: null,
-    checkpointStrip: null,
-    checkpoints: {},
+    thoughtLog: null,
+    thoughtSteps: {},
+    globalStep: null,
     blocks: {},
     currentFile: null,
     inContent: false,
-    escapeNext: false,
     stream: null,
   });
 }
 
-// Called with every SSE chunk's delta text
-function _liveIngest(delta) {
-  liveState.accumulated += delta;
+// ── Thought log helpers ───────────────────────────────────────
+function _makeStep(iconHtml, label, state) {
+  const el = document.createElement('div');
+  el.className = 'thought-step ts-' + state;
+  el.innerHTML = '<div class="ts-icon">' + iconHtml + '</div><div class="ts-label">' + label + '</div>';
+  return el;
+}
+function _spinnerIcon() { return '<div class="ts-spinner"></div>'; }
+function _checkIcon()   { return '<div class="ts-check"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div>'; }
+function _dotIcon()     { return '<div class="ts-dot"></div>'; }
 
-  // ── Detect which filename we're writing into ──
-  // We look for "filename": "<name>" patterns in accumulated so far
-  const fnameMatches = [...liveState.accumulated.matchAll(/"filename"\s*:\s*"([^"]+)"/g)];
-  if (fnameMatches.length) {
-    const latestFile = fnameMatches[fnameMatches.length - 1][1];
-    if (latestFile !== liveState.currentFile) {
-      liveState.currentFile = latestFile;
-      liveState.inContent = false;
-      // Ensure a block exists for this file
-      _ensureBlock(latestFile);
-    }
-  }
-
-  // ── Detect entry into "content": " value ──
-  if (!liveState.inContent && liveState.currentFile) {
-    // Look for "content": " after the last filename occurrence
-    const lastFnameIdx = liveState.accumulated.lastIndexOf(`"${liveState.currentFile}"`);
-    const afterFilename = liveState.accumulated.slice(lastFnameIdx);
-    const contentMatch = afterFilename.match(/"content"\s*:\s*"/);
-    if (contentMatch) {
-      liveState.inContent = true;
-      // Trim accumulated to just after the opening quote of content
-      const startIdx = liveState.accumulated.lastIndexOf(`"${liveState.currentFile}"`) +
-                       afterFilename.indexOf('"content"') +
-                       contentMatch[0].length;
-      // We'll parse char-by-char from here — handled by _flushContent
-    }
-  }
-
-  if (liveState.inContent && liveState.currentFile) {
-    _flushContent();
-  }
+function _stepActive(el, label) {
+  el.className = 'thought-step ts-active';
+  el.querySelector('.ts-icon').innerHTML = _spinnerIcon();
+  if (label) el.querySelector('.ts-label').innerHTML = label;
+}
+function _stepDone(el, label) {
+  el.className = 'thought-step ts-done';
+  el.querySelector('.ts-icon').innerHTML = _checkIcon();
+  if (label) el.querySelector('.ts-label').innerHTML = label;
 }
 
+// ── Live block helpers ────────────────────────────────────────
 function _ensureBlock(filename) {
   if (liveState.blocks[filename]) return;
   if (!liveState.codeContainer) return;
 
   const ext = filename.split('.').pop().toLowerCase();
   const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
+  const basename = filename.includes('/') ? filename.split('/').pop() : filename;
 
-  // Add "writing" checkpoint pill
-  if (liveState.checkpointStrip && !liveState.checkpoints[filename]) {
-    const basename = filename.includes('/') ? filename.split('/').pop() : filename;
-    const pill = document.createElement('div');
-    pill.className = 'checkpoint writing';
-    pill.innerHTML = `<span class="cp-spinner"></span><span>Writing ${escHtml(basename)}…</span>`;
-    liveState.checkpointStrip.appendChild(pill);
-    liveState.checkpoints[filename] = pill;
+  // Add thought step for this file
+  if (liveState.thoughtLog) {
+    // Mark previous file step done if any
+    const prevFile = liveState.currentFile;
+    if (prevFile && liveState.thoughtSteps[prevFile]) {
+      const pfBase = prevFile.includes('/') ? prevFile.split('/').pop() : prevFile;
+      _stepDone(liveState.thoughtSteps[prevFile], '<span class="ts-file-tag">' + escHtml(pfBase) + '</span> complete');
+    }
+
+    const step = _makeStep(_spinnerIcon(), 'Writing <span class="ts-file-tag">' + escHtml(basename) + '</span>…', 'active');
+    liveState.thoughtLog.appendChild(step);
+    liveState.thoughtSteps[filename] = step;
     const w = document.getElementById('chat-wrap');
-    if (w.scrollHeight - w.scrollTop - w.clientHeight < 140) w.scrollTop = w.scrollHeight;
+    if (w.scrollHeight - w.scrollTop - w.clientHeight < 160) w.scrollTop = w.scrollHeight;
   }
 
   const blockEl = document.createElement('div');
   blockEl.className = 'live-code-block';
-  blockEl.innerHTML = `
-    <div class="live-code-header">
-      <span class="live-code-lang">${escHtml(langLabel)}</span>
-      <span class="live-code-filename">${escHtml(filename)}</span>
-      <button class="live-code-copy" onclick="copyLiveCode(this)">
-        <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        Copy
-      </button>
-    </div>
-    <div class="live-code-body"></div>
-  `;
+  blockEl.innerHTML = '<div class="live-code-header">' +
+    '<span class="live-code-lang">' + escHtml(langLabel) + '</span>' +
+    '<span class="live-code-filename">' + escHtml(filename) + '</span>' +
+    '<button class="live-code-copy" onclick="copyLiveCode(this)">' +
+    '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button>' +
+    '</div><div class="live-code-body"></div>';
   liveState.codeContainer.appendChild(blockEl);
   liveState.blocks[filename] = {
     bodyEl: blockEl.querySelector('.live-code-body'),
@@ -752,14 +729,37 @@ function _ensureBlock(filename) {
   };
 }
 
-// Parse and render content chars from accumulated buffer
+// Called with every SSE chunk delta
+function _liveIngest(delta) {
+  liveState.accumulated += delta;
+
+  // Detect filename being written
+  const fnameMatches = [...liveState.accumulated.matchAll(/"filename"\s*:\s*"([^"]+)"/g)];
+  if (fnameMatches.length) {
+    const latestFile = fnameMatches[fnameMatches.length - 1][1];
+    if (latestFile !== liveState.currentFile) {
+      liveState.currentFile = latestFile;
+      liveState.inContent = false;
+      _ensureBlock(latestFile);
+    }
+  }
+
+  if (!liveState.inContent && liveState.currentFile) {
+    const lastFnameIdx = liveState.accumulated.lastIndexOf('"' + liveState.currentFile + '"');
+    const afterFilename = liveState.accumulated.slice(lastFnameIdx);
+    const contentMatch = afterFilename.match(/"content"\s*:\s*"/);
+    if (contentMatch) liveState.inContent = true;
+  }
+
+  if (liveState.inContent && liveState.currentFile) _flushContent();
+}
+
 function _flushContent() {
   const file = liveState.currentFile;
   const block = liveState.blocks[file];
   if (!block) return;
 
-  // Find the start of this file's content value in accumulated
-  const fnameIdx = liveState.accumulated.lastIndexOf(`"${file}"`);
+  const fnameIdx = liveState.accumulated.lastIndexOf('"' + file + '"');
   const afterFname = liveState.accumulated.slice(fnameIdx);
   const contentMatch = afterFname.match(/"content"\s*:\s*"/);
   if (!contentMatch) return;
@@ -767,31 +767,24 @@ function _flushContent() {
   const contentStart = fnameIdx + afterFname.indexOf('"content"') + contentMatch[0].length;
   const raw = liveState.accumulated.slice(contentStart);
 
-  // Decode JSON string escape sequences up to the closing quote
-  let decoded = '';
-  let i = 0;
+  let decoded = '', i = 0;
   while (i < raw.length) {
     const ch = raw[i];
     if (ch === '\\') {
       const next = raw[i + 1];
-      if (next === undefined) break; // wait for more data
+      if (next === undefined) break;
       if (next === 'n')       { decoded += '\n'; i += 2; }
       else if (next === 't')  { decoded += '\t'; i += 2; }
       else if (next === 'r')  { decoded += '\r'; i += 2; }
-      else if (next === '"')  { decoded += '"';  i += 2; }
+      else if (next === '"'  ) { decoded += '"';  i += 2; }
       else if (next === '\\') { decoded += '\\'; i += 2; }
       else                    { decoded += next; i += 2; }
     } else if (ch === '"') {
-      // Closing quote — content ends here; stop writing and mark done
       liveState.inContent = false;
       break;
-    } else {
-      decoded += ch;
-      i++;
-    }
+    } else { decoded += ch; i++; }
   }
 
-  // Only show first 2000 chars live; rest is truncated
   const MAX = 2000;
   if (decoded.length > MAX && !block.truncated) {
     block.fullText = decoded.slice(0, MAX);
@@ -802,36 +795,32 @@ function _flushContent() {
     block.bodyEl.textContent = decoded;
   }
 
-  // Auto-scroll if user is near bottom
   const w = document.getElementById('chat-wrap');
-  if (w.scrollHeight - w.scrollTop - w.clientHeight < 120) {
-    w.scrollTop = w.scrollHeight;
-  }
+  if (w.scrollHeight - w.scrollTop - w.clientHeight < 120) w.scrollTop = w.scrollHeight;
 }
 
-// Called when done event arrives — replace live blocks with final file data
+// Finalize on done event
 function _liveFinalize(files) {
   if (!liveState.codeContainer) return;
 
-  // Mark all checkpoint pills as done
+  // Mark last file step done
   files.forEach(f => {
-    const pill = liveState.checkpoints[f.filename];
-    if (pill) {
-      const basename = f.filename.includes('/') ? f.filename.split('/').pop() : f.filename;
-      pill.className = 'checkpoint done';
-      pill.innerHTML = `<span class="cp-icon">✓</span><span>${escHtml(basename)} saved</span>`;
+    const step = liveState.thoughtSteps[f.filename];
+    if (step) {
+      const base = f.filename.includes('/') ? f.filename.split('/').pop() : f.filename;
+      _stepDone(step, '<span class="ts-file-tag">' + escHtml(base) + '</span> saved');
     }
   });
 
-  // Add a final "all done" summary pill
-  if (liveState.checkpointStrip && files.length > 0) {
-    const summary = document.createElement('div');
-    summary.className = 'checkpoint done';
-    summary.innerHTML = `<span class="cp-icon">✦</span><span>${files.length} file${files.length > 1 ? 's' : ''} created — open Files to view</span>`;
-    liveState.checkpointStrip.appendChild(summary);
+  // Summary step
+  if (liveState.thoughtLog && files.length > 0) {
+    const summary = _makeStep(_checkIcon(),
+      files.length + ' file' + (files.length > 1 ? 's' : '') + ' ready — open Files to preview',
+      'done');
+    liveState.thoughtLog.appendChild(summary);
   }
 
-  // Clear and re-render with final content (respects truncation)
+  // Re-render code blocks with final content
   liveState.codeContainer.innerHTML = '';
   files.forEach(f => {
     if (!f.content) return;
@@ -839,22 +828,20 @@ function _liveFinalize(files) {
     const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
     const blockEl = document.createElement('div');
     blockEl.className = 'live-code-block';
-    blockEl.innerHTML = `
-      <div class="live-code-header">
-        <span class="live-code-lang">${escHtml(langLabel)}</span>
-        <span class="live-code-filename">${escHtml(f.filename)}</span>
-        <button class="live-code-copy" onclick="copyLiveCode(this)">
-          <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          Copy
-        </button>
-      </div>
-      <div class="live-code-body">${escHtml(f.content.slice(0, 2000))}${f.content.length > 2000 ? '\n… (truncated — open Files to view full source)' : ''}</div>
-    `;
+    blockEl.innerHTML = '<div class="live-code-header">' +
+      '<span class="live-code-lang">' + escHtml(langLabel) + '</span>' +
+      '<span class="live-code-filename">' + escHtml(f.filename) + '</span>' +
+      '<button class="live-code-copy" onclick="copyLiveCode(this)">' +
+      '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button>' +
+      '</div><div class="live-code-body">' +
+      escHtml(f.content.slice(0, 2000)) +
+      (f.content.length > 2000 ? '\n… (truncated — open Files to view full source)' : '') +
+      '</div>';
     liveState.codeContainer.appendChild(blockEl);
   });
 }
 
-// ── Send ───────────────────────────────────────────────────────
+// ── Send ──────────────────────────────────────────────────────
 async function sendMessage() {
   const msg = input.value.trim();
   if (!msg || isSending) return;
@@ -872,19 +859,24 @@ async function sendMessage() {
   // User bubble
   const userRow = document.createElement('div');
   userRow.className = 'msg-user';
-  userRow.innerHTML = `<div class="msg-user-text">${escHtml(msg)}</div>`;
+  userRow.innerHTML = '<div class="msg-user-text">' + escHtml(msg) + '</div>';
   chatStream.insertBefore(userRow, typingEl);
 
-  // Code container + checkpoint strip (appear immediately, fill as stream arrives)
+  // Thought log (above code blocks)
   _liveReset();
   liveState.stream = chatStream;
 
-  // Checkpoint strip sits above the code blocks
-  const checkpointStrip = document.createElement('div');
-  checkpointStrip.className = 'checkpoint-strip';
-  chatStream.insertBefore(checkpointStrip, typingEl);
-  liveState.checkpointStrip = checkpointStrip;
+  const thoughtLog = document.createElement('div');
+  thoughtLog.className = 'thought-log';
+  chatStream.insertBefore(thoughtLog, typingEl);
+  liveState.thoughtLog = thoughtLog;
 
+  // Initial step: "Generating code"
+  const genStep = _makeStep(_spinnerIcon(), 'Thinking about your request…', 'active');
+  thoughtLog.appendChild(genStep);
+  liveState.globalStep = genStep;
+
+  // Code container
   const codeContainer = document.createElement('div');
   codeContainer.style.marginBottom = '14px';
   chatStream.insertBefore(codeContainer, typingEl);
@@ -896,13 +888,13 @@ async function sendMessage() {
   scrollBottom();
 
   try {
-    const res = await fetch(`/project/website/${PROJECT_ID}/send-stream`, {
+    const res = await fetch('/project/website/' + PROJECT_ID + '/send-stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: msg })
     });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -913,9 +905,8 @@ async function sendMessage() {
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
-      // Process complete SSE lines
       const lines = buffer.split('\n');
-      buffer = lines.pop(); // keep incomplete last line
+      buffer = lines.pop();
 
       let eventType = 'message';
       for (const line of lines) {
@@ -927,7 +918,6 @@ async function sendMessage() {
             const parsed = JSON.parse(payload);
 
             if (eventType === 'done') {
-              // ── Final event ──────────────────────────────────
               typingEl.style.display = 'none';
 
               if (parsed.files && parsed.files.length > 0) {
@@ -937,8 +927,8 @@ async function sendMessage() {
                 updateFilesBadge(currentFiles.length);
                 document.getElementById('dev-link').style.display = 'flex';
 
-                // Re-fetch from server to ensure drawer reflects saved state
-                fetch(`/project/website/${PROJECT_ID}/files`)
+                // Re-fetch from server to confirm saved state
+                fetch('/project/website/' + PROJECT_ID + '/files')
                   .then(r => r.json())
                   .then(d => {
                     if (d.files && d.files.length) {
@@ -957,50 +947,43 @@ async function sendMessage() {
               aiRow.className = 'msg-ai';
               let html = '';
               if (parsed.error && !parsed.message) {
-                html = `<p style="color:#ef4444">${escHtml(parsed.error)}</p>`;
+                html = '<p style="color:#ef4444">' + escHtml(parsed.error) + '</p>';
+                // Mark last active step as error if any
+                if (liveState.globalStep) _stepDone(liveState.globalStep, 'Something went wrong');
               } else {
                 html = renderAiText(parsed.message || 'Done!');
               }
-              aiRow.innerHTML = `
-                <div class="msg-ai-text">${html}</div>
-                <div class="msg-actions">
-                  <button class="action-btn" onclick="copyText(this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-                  <button class="action-btn" title="Good"><svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>
-                  <button class="action-btn" title="Bad"><svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>
-                  <button class="action-btn regen" title="Regenerate"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg></button>
-                </div>
-              `;
+              aiRow.innerHTML = '<div class="msg-ai-text">' + html + '</div>' +
+                '<div class="msg-actions">' +
+                '<button class="action-btn" onclick="copyText(this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>' +
+                '<button class="action-btn" title="Good"><svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>' +
+                '<button class="action-btn" title="Bad"><svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>' +
+                '<button class="action-btn regen" title="Regenerate"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg></button>' +
+                '</div>';
               chatStream.insertBefore(aiRow, typingEl);
               scrollBottom();
 
             } else if (eventType === 'error') {
               typingEl.style.display = 'none';
               codeContainer.remove();
+              if (liveState.globalStep) _stepDone(liveState.globalStep, 'Request failed');
               const errRow = document.createElement('div');
               errRow.className = 'msg-ai';
-              errRow.innerHTML = `<div class="msg-ai-text"><p style="color:#ef4444">${escHtml(parsed.error || 'Error occurred.')}</p></div>`;
+              errRow.innerHTML = '<div class="msg-ai-text"><p style="color:#ef4444">' + escHtml(parsed.error || 'Error occurred.') + '</p></div>';
               chatStream.insertBefore(errRow, typingEl);
 
             } else if (parsed.chunk !== undefined) {
-              // ── Streaming chunk ───────────────────────────────
+              // First chunk: upgrade "Thinking" step to "Writing code"
               if (typingEl.style.display !== 'none') {
-                typingEl.style.display = 'none'; // hide dots once writing starts
-                // Show a global "generating" pill until first file is detected
-                if (liveState.checkpointStrip && liveState.checkpointStrip.children.length === 0) {
-                  const startPill = document.createElement('div');
-                  startPill.className = 'checkpoint writing';
-                  startPill.id = 'cp-start';
-                  startPill.innerHTML = `<span class="cp-spinner"></span><span>Generating code…</span>`;
-                  liveState.checkpointStrip.appendChild(startPill);
-                }
+                typingEl.style.display = 'none';
               }
-              // Remove start pill once a real file block appears
-              const startPill = document.getElementById('cp-start');
-              if (startPill && Object.keys(liveState.blocks).length > 0) startPill.remove();
+              if (liveState.globalStep && liveState.globalStep.className.includes('ts-active') && Object.keys(liveState.blocks).length === 0) {
+                _stepDone(liveState.globalStep, 'Plan ready — writing files');
+              }
               _liveIngest(parsed.chunk);
             }
-          } catch(parseErr) { /* ignore malformed SSE line */ }
-          eventType = 'message'; // reset for next event
+          } catch(parseErr) { /* ignore malformed SSE */ }
+          eventType = 'message';
         }
       }
     }
@@ -1010,6 +993,7 @@ async function sendMessage() {
     if (liveState.codeContainer && liveState.codeContainer.children.length === 0) {
       liveState.codeContainer.remove();
     }
+    if (liveState.globalStep) _stepDone(liveState.globalStep, 'Connection failed');
     const errRow = document.createElement('div');
     errRow.className = 'msg-ai';
     errRow.innerHTML = '<div class="msg-ai-text"><p>Connection error. Please try again.</p></div>';
@@ -1020,8 +1004,7 @@ async function sendMessage() {
   sendBtn.disabled = !input.value.trim();
   scrollBottom();
 }
-
-// ── Render AI text ─────────────────────────────────────────────
+// ── Render AI text ────────────────────────────────────────────
 function renderAiText(text) {
   const blocks = [];
   const withPlaceholders = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
@@ -1054,7 +1037,6 @@ function renderAiText(text) {
   return html;
 }
 
-
 function copyCode(btn) {
   const code = btn.closest('.code-block').querySelector('.code-body').textContent;
   navigator.clipboard.writeText(code).then(() => showToast('Copied!'));
@@ -1070,7 +1052,7 @@ function copyText(btn) {
   navigator.clipboard.writeText(text).then(() => showToast('Copied!'));
 }
 
-// ── Drawer ─────────────────────────────────────────────────────
+// ── Drawer ────────────────────────────────────────────────────
 function openDrawer() {
   document.getElementById('drawer-overlay').classList.add('open');
   showDrawerPanel(null);
@@ -1097,7 +1079,7 @@ function showDrawerPanel(name) {
   }
 }
 
-// ── Files ──────────────────────────────────────────────────────
+// ── Files ─────────────────────────────────────────────────────
 function updateFilesBadge(count) {
   const b = document.getElementById('files-badge');
   b.textContent = count;
@@ -1149,7 +1131,7 @@ function copyFileContent() {
   navigator.clipboard.writeText(code).then(() => showToast('Copied!'));
 }
 
-// ── Preview ────────────────────────────────────────────────────
+// ── Preview ───────────────────────────────────────────────────
 function loadPreview() {
   const frame = document.getElementById('preview-frame');
   const empty = document.getElementById('preview-empty');
@@ -1163,7 +1145,7 @@ function openInBrowser() {
   window.open(`/dev/${PROJECT_ID}/`, '_blank');
 }
 
-// ── History ────────────────────────────────────────────────────
+// ── History ───────────────────────────────────────────────────
 async function loadVersions() {
   const list = document.getElementById('version-list');
   const empty = document.getElementById('versions-empty');
@@ -1202,7 +1184,7 @@ async function restoreVersion(versionId) {
   } catch(e) { showToast('Failed to restore.'); }
 }
 
-// ── Utils ──────────────────────────────────────────────────────
+// ── Utils ─────────────────────────────────────────────────────
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -1213,6 +1195,7 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2200);
 }
+
 </script>
 <script>
   if ("serviceWorker" in navigator) {
