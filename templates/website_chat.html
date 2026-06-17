@@ -16,6 +16,11 @@
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 <title>{{ project.name }}</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 <style>
 /* ── Tokens (chat.html palette) ── */
@@ -97,6 +102,28 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 
 /* ── AI response block ── */
 .msg-ai{margin-bottom:28px;animation:fadeUp .25s ease both}
+
+/* ── Prism token overrides — transparent background ── */
+pre[class*="language-"],code[class*="language-"]{background:transparent!important;text-shadow:none!important;font-size:12px!important;line-height:1.75!important;white-space:pre!important;font-family:'Courier New',Courier,monospace!important;}
+.token.tag,.token.keyword{color:#c084fc}
+.token.attr-name,.token.property{color:#67d7e1}
+.token.attr-value,.token.string{color:#86efac}
+.token.comment,.token.prolog{color:var(--text3);font-style:italic}
+.token.function{color:#fb923c}
+.token.number,.token.boolean{color:#f87171}
+.token.selector,.token.class-name{color:#a3e635}
+.token.punctuation{color:var(--text3)}
+.token.operator{color:#e3b341}
+[data-theme="dark"] .token.string,[data-theme="dark"] .token.attr-value{color:#4ade80}
+[data-theme="dark"] .token.function{color:#fdba74}
+
+/* ── File-complete separator ── */
+.file-done-sep{display:flex;align-items:center;gap:8px;margin:6px 0 16px;font-size:11px;color:var(--text3);font-weight:500;letter-spacing:.2px}
+.file-done-sep::after{content:'';flex:1;height:1px;background:var(--border)}
+.fds-check{width:14px;height:14px;border-radius:50%;flex-shrink:0;background:rgba(34,197,94,.13);display:flex;align-items:center;justify-content:center}
+.fds-check svg{width:8px;height:8px;stroke:#16a34a;stroke-width:2.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+[data-theme="dark"] .fds-check{background:rgba(34,197,94,.09)}
+[data-theme="dark"] .fds-check svg{stroke:#4ade80}
 
 /* ── Real-time code block — blends into chat background ── */
 .live-code-block{
@@ -822,12 +849,14 @@ function _liveFinalize(files) {
     liveState.thoughtLog.appendChild(summary);
   }
 
-  // Re-render code blocks with final content
+  // Re-render code blocks with Prism syntax highlighting + file separators
   liveState.codeContainer.innerHTML = '';
-  files.forEach(f => {
+  files.forEach((f, idx) => {
     if (!f.content) return;
     const ext = f.filename.split('.').pop().toLowerCase();
-    const langLabel = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : ext;
+    const langLabel = ext === 'html' ? 'HTML' : ext === 'css' ? 'CSS' : ext === 'js' ? 'JavaScript' : ext.toUpperCase();
+    const prismLang = ext === 'html' ? 'markup' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : 'markup';
+
     const blockEl = document.createElement('div');
     blockEl.className = 'live-code-block';
     blockEl.innerHTML = '<div class="live-code-header">' +
@@ -835,10 +864,21 @@ function _liveFinalize(files) {
       '<span class="live-code-filename">' + escHtml(f.filename) + '</span>' +
       '<button class="live-code-copy" onclick="copyLiveCode(this)">' +
       '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button>' +
-      '</div><div class="live-code-body">' +
-      escHtml(f.content) +
-      '</div>';
+      '</div><pre class="live-code-body language-' + prismLang + '"><code class="language-' + prismLang + '"></code></pre>';
     liveState.codeContainer.appendChild(blockEl);
+
+    // Set content then highlight
+    const codeEl = blockEl.querySelector('code');
+    codeEl.textContent = f.content;
+    if (typeof Prism !== 'undefined') Prism.highlightElement(codeEl);
+
+    // File-complete separator after each block (except last)
+    if (idx < files.length - 1) {
+      const sep = document.createElement('div');
+      sep.className = 'file-done-sep';
+      sep.innerHTML = '<div class="fds-check"><svg viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1"/></svg></div>' + escHtml(langLabel) + ' complete';
+      liveState.codeContainer.appendChild(sep);
+    }
   });
 }
 
@@ -1088,8 +1128,9 @@ function copyCode(btn) {
 }
 
 function copyLiveCode(btn) {
-  const code = btn.closest('.live-code-block').querySelector('.live-code-body').textContent;
-  navigator.clipboard.writeText(code).then(() => showToast('Copied!'));
+  const block = btn.closest('.live-code-block');
+  const src = block.querySelector('code') || block.querySelector('.live-code-body');
+  navigator.clipboard.writeText(src.textContent).then(() => showToast('Copied!'));
 }
 
 function copyText(btn) {
