@@ -720,6 +720,12 @@ function _stepDone(el, label) {
   el.querySelector('.ts-icon').innerHTML = _checkIcon();
   if (label) el.querySelector('.ts-label').innerHTML = label;
 }
+function _stepError(el, label) {
+  el.className = 'thought-step ts-done';
+  el.querySelector('.ts-icon').innerHTML = '<div style="width:14px;height:14px;border-radius:50%;background:rgba(239,68,68,.13);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 10 10" width="8" height="8" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-linecap="round"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg></div>';
+  if (label) el.querySelector('.ts-label').innerHTML = label;
+  el.style.color = '#ef4444';
+}
 
 // ── Live block helpers ────────────────────────────────────────
 function _ensureBlock(filename) {
@@ -746,17 +752,21 @@ function _ensureBlock(filename) {
     if (w.scrollHeight - w.scrollTop - w.clientHeight < 160) w.scrollTop = w.scrollHeight;
   }
 
+  const prismLang = ext === 'html' ? 'markup' : ext === 'css' ? 'css' : ext === 'js' ? 'javascript' : 'markup';
+  const dispLabel = ext === 'html' ? 'HTML' : ext === 'css' ? 'CSS' : ext === 'js' ? 'JavaScript' : ext.toUpperCase();
+
   const blockEl = document.createElement('div');
   blockEl.className = 'live-code-block';
   blockEl.innerHTML = '<div class="live-code-header">' +
-    '<span class="live-code-lang">' + escHtml(langLabel) + '</span>' +
+    '<span class="live-code-lang">' + escHtml(dispLabel) + '</span>' +
     '<span class="live-code-filename">' + escHtml(filename) + '</span>' +
     '<button class="live-code-copy" onclick="copyLiveCode(this)">' +
     '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button>' +
-    '</div><div class="live-code-body"></div>';
+    '</div><pre class="live-code-body language-' + prismLang + '"><code class="language-' + prismLang + '"></code></pre>';
   liveState.codeContainer.appendChild(blockEl);
   liveState.blocks[filename] = {
-    bodyEl: blockEl.querySelector('.live-code-body'),
+    bodyEl: blockEl.querySelector('code'),
+    prismLang,
     fullText: '',
     truncated: false,
   };
@@ -818,10 +828,16 @@ function _flushContent() {
     } else { decoded += ch; i++; }
   }
 
-  // Show full code — no truncation during streaming
+  // Show full code with live syntax highlighting every ~600 chars
   if (!block.truncated) {
     block.fullText = decoded;
     block.bodyEl.textContent = decoded;
+    if (typeof Prism !== 'undefined') {
+      if (!block._lastHL || decoded.length - block._lastHL > 600) {
+        Prism.highlightElement(block.bodyEl);
+        block._lastHL = decoded.length;
+      }
+    }
   }
 
   const w = document.getElementById('chat-wrap');
@@ -971,7 +987,7 @@ async function sendMessage() {
                 let aiHtml = '';
                 if (parsed.error && !parsed.message) {
                   aiHtml = '<p style="color:#ef4444">' + escHtml(parsed.error) + '</p>';
-                  if (liveState.globalStep) _stepDone(liveState.globalStep, 'Something went wrong');
+                  if (liveState.globalStep) _stepError(liveState.globalStep, 'Something went wrong');
                 } else {
                   aiHtml = renderAiText(parsed.message || 'Done!');
                 }
@@ -1001,7 +1017,7 @@ async function sendMessage() {
             } else if (eventType === 'error') {
               typingEl.style.display = 'none';
               if (liveState.codeContainer) liveState.codeContainer.remove();
-              if (liveState.globalStep) _stepDone(liveState.globalStep, 'Request failed');
+              if (liveState.globalStep) _stepError(liveState.globalStep, 'Request failed');
               const errRow = document.createElement('div');
               errRow.className = 'msg-ai';
               errRow.innerHTML = '<div class="msg-ai-text"><p style="color:#ef4444">' + escHtml(parsed.error || 'Error occurred.') + '</p></div>';
@@ -1051,14 +1067,33 @@ async function sendMessage() {
           const remaining = buffer.split('\n');
           processSSELines(remaining);
         }
-        // Safety net: if done event never fired, clean up
+        // Safety net: if stream closed without done event but we were writing files,
+        // try fetching files anyway (server may have saved them before disconnect)
         if (!doneHandled) {
           typingEl.style.display = 'none';
-          if (liveState.codeContainer && liveState.codeContainer.children.length === 0) {
-            liveState.codeContainer.remove();
-          }
-          if (liveState.thoughtLog && liveState.thoughtLog.children.length === 0) {
-            liveState.thoughtLog.remove();
+          if (liveState._uiReady) {
+            // Was streaming — try to recover files
+            fetch('/project/website/' + PROJECT_ID + '/files')
+              .then(r => r.json())
+              .then(d => {
+                if (d.files && d.files.length > 0) {
+                  _liveFinalize(d.files);
+                  currentFiles = d.files;
+                  renderFileList(d.files);
+                  updateFilesBadge(d.files.length);
+                  document.getElementById('dev-link').style.display = 'flex';
+                  // Add recovered message
+                  const recRow = document.createElement('div');
+                  recRow.className = 'msg-ai';
+                  recRow.innerHTML = '<div class="msg-ai-text"><p>Connection dropped but your files were saved! ✓</p></div>';
+                  chatStream.insertBefore(recRow, typingEl);
+                  doneHandled = true;
+                }
+              })
+              .catch(() => {});
+          } else {
+            if (liveState.codeContainer) liveState.codeContainer.remove();
+            if (liveState.thoughtLog) liveState.thoughtLog.remove();
           }
         }
         break;
@@ -1070,15 +1105,22 @@ async function sendMessage() {
     }
 
   } catch(e) {
-    typingEl.style.display = 'none';
-    if (liveState.codeContainer && liveState.codeContainer.children.length === 0) {
-      liveState.codeContainer.remove();
+    // Only show connection error if the done event never successfully fired
+    // (if doneHandled is true, the stream finished fine — this is a post-close cleanup error)
+    if (!doneHandled) {
+      typingEl.style.display = 'none';
+      if (liveState.codeContainer && liveState.codeContainer.children.length === 0) {
+        liveState.codeContainer.remove();
+      }
+      if (liveState.thoughtLog && liveState.thoughtLog.children.length === 0) {
+        liveState.thoughtLog.remove();
+      }
+      if (liveState.globalStep) _stepError(liveState.globalStep, 'Connection failed');
+      const errRow = document.createElement('div');
+      errRow.className = 'msg-ai';
+      errRow.innerHTML = '<div class="msg-ai-text"><p style="color:#ef4444">Connection error. Please try again.</p></div>';
+      chatStream.insertBefore(errRow, typingEl);
     }
-    if (liveState.globalStep) _stepDone(liveState.globalStep, 'Connection failed');
-    const errRow = document.createElement('div');
-    errRow.className = 'msg-ai';
-    errRow.innerHTML = '<div class="msg-ai-text"><p>Connection error. Please try again.</p></div>';
-    chatStream.insertBefore(errRow, typingEl);
   }
 
   // Note: isSending is reset inside _finishUI for normal flow,
