@@ -1847,6 +1847,16 @@
     setTimeout(()=>{ window.location.href=path; },800);
   }
 
+  // Reset the overlay on every page show — covers the case where the browser
+  // restores this page from its back-forward cache after the user hits "back"
+  // from a page we doRedirect()'d into. Without this the overlay (which has
+  // infinite spinner/dot animations) stays stuck mid-transition forever.
+  window.addEventListener('pageshow', function(){
+    document.body.classList.remove('redirecting');
+    const ov = document.getElementById('redirectOverlay');
+    if (ov) ov.classList.remove('go');
+  });
+
   sendBtn.addEventListener('click',()=>doRedirect('/chat?new=1'));
   mainInput.addEventListener('keydown',e=>{
     if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); doRedirect('/chat?new=1'); }
@@ -2560,8 +2570,14 @@
 
   // ── Open project (navigate) ──
   window.handleProjectOpen = function(e, id) {
-    // Default anchor navigation is fine — just let it go
-    return true;
+    e.preventDefault();
+    const href = e.currentTarget.getAttribute('href');
+    if (typeof doRedirect === 'function') {
+      doRedirect(href);
+    } else {
+      window.location.href = href;
+    }
+    return false;
   };
 
   // ── Scroll to projects section ──
