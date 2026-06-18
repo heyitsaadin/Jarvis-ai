@@ -53,6 +53,15 @@ def _nvidia3_client():
         api_key=os.environ.get("NVIDIA_API_3", ""),
     )
 
+
+# ─── NVIDIA NIM client #3 (Kimi K2.6) ───────────────────────────────────────
+
+def _nvidia4_client():
+    return OpenAI(
+        base_url="https://integrate.api.nvidia.com/v1",
+        api_key=os.environ.get("NVIDIA_API_4", ""),
+    )
+
 # ─── DB init ─────────────────────────────────────────────────────────────────
 
 def init_website_db():
@@ -455,10 +464,20 @@ MODEL_CONFIGS = {
         "model": "nvidia/nemotron-3-ultra-550b-a55b",
         "client_fn": _nvidia3_client,
         "api_key_env": "NVIDIA_API_3",
-        "max_tokens": 16384,
-        "temperature": 1,
+        "max_tokens": 32768,
+        "temperature": 0.6,
         "top_p": 0.95,
         "supports_think": True,
+    },
+    "kimi": {
+        "label": "Kimi K2.6",
+        "model": "moonshotai/kimi-k2.6",
+        "client_fn": _nvidia4_client,
+        "api_key_env": "NVIDIA_API_4",
+        "max_tokens": 16384,
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "supports_think": False,
     },
 }
 DEFAULT_MODEL = "nvidia"
