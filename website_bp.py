@@ -44,6 +44,15 @@ def _groq_client():
         api_key=os.environ.get("GROQ_API_KEY", ""),
     )
 
+
+# ─── NVIDIA NIM client #2 (Nemotron — supports "Think" mode) ────────────────
+
+def _nvidia3_client():
+    return OpenAI(
+        base_url="https://integrate.api.nvidia.com/v1",
+        api_key=os.environ.get("NVIDIA_API_3", ""),
+    )
+
 # ─── DB init ─────────────────────────────────────────────────────────────────
 
 def init_website_db():
@@ -415,6 +424,46 @@ def _call_groq(messages, current_files):
         return None, str(e)
 
 
+# ─── Model registry ──────────────────────────────────────────────────────────
+# Maps the model key sent from the frontend picker to its API config.
+# Only "nemotron" supports the "Think" toggle (enable_thinking via
+# chat_template_kwargs) — the other two ignore the `think` flag entirely.
+
+MODEL_CONFIGS = {
+    "nvidia": {
+        "label": "DeepSeek V4 Flash",
+        "model": "deepseek-ai/deepseek-v4-flash",
+        "client_fn": _nvidia_client,
+        "api_key_env": "NVIDIA_API_KEY",
+        "max_tokens": 16384,
+        "temperature": 1,
+        "top_p": 0.95,
+        "supports_think": False,
+    },
+    "groq": {
+        "label": "Llama 3.3 70B (Groq)",
+        "model": "llama-3.3-70b-versatile",
+        "client_fn": _groq_client,
+        "api_key_env": "GROQ_API_KEY",
+        "max_tokens": 8192,
+        "temperature": 0.3,
+        "top_p": 0.95,
+        "supports_think": False,
+    },
+    "nemotron": {
+        "label": "Nemotron 3 Ultra",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b",
+        "client_fn": _nvidia3_client,
+        "api_key_env": "NVIDIA_API_3",
+        "max_tokens": 16384,
+        "temperature": 1,
+        "top_p": 0.95,
+        "supports_think": True,
+    },
+}
+DEFAULT_MODEL = "nvidia"
+
+
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
 @website_bp.route("/project/website/<int:project_id>")
@@ -526,14 +575,23 @@ def website_send_stream(project_id):
     if not raw_msg:
         return jsonify({"error": "empty"}), 400
 
-    use_groq = raw_msg.lower().startswith("@groq ")
-    user_msg = raw_msg[6:].strip() if use_groq else raw_msg
+    # Model comes from the UI picker now. "@groq " prefix kept as a manual
+    # override for backwards compatibility.
+    model_choice = data.get("model", DEFAULT_MODEL)
+    if model_choice not in MODEL_CONFIGS:
+        model_choice = DEFAULT_MODEL
+    if raw_msg.lower().startswith("@groq "):
+        model_choice = "groq"
+        raw_msg = raw_msg[6:].strip()
 
+    think_enabled = bool(data.get("think", False)) and MODEL_CONFIGS[model_choice]["supports_think"]
+
+    user_msg = raw_msg
     messages = _get_chat(project_id, username)
     current_files = _get_files(project_id, username)
 
     # ── Intent check: short-circuit casual chat without hitting website AI ──
-    if not use_groq and _is_chat_message(user_msg):
+    if _is_chat_message(user_msg):
         reply = _chat_reply(user_msg)
         messages.append({"sender": "You", "text": user_msg})
         messages.append({"sender": "Mia", "text": reply})
@@ -564,47 +622,46 @@ def website_send_stream(project_id):
             content = content + files_context
         api_messages.append({"role": role, "content": content})
 
+    def _start_stream(choice, think):
+        """Create a streaming completion for the given model choice."""
+        cfg = MODEL_CONFIGS[choice]
+        api_key = os.environ.get(cfg["api_key_env"], "")
+        if not api_key:
+            raise RuntimeError(f"{cfg['api_key_env']} not set")
+        client = cfg["client_fn"]()
+        kwargs = dict(
+            model=cfg["model"],
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
+            max_tokens=cfg["max_tokens"],
+            temperature=cfg["temperature"],
+            top_p=cfg["top_p"],
+            stream=True,
+        )
+        if cfg["supports_think"]:
+            kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": think}}
+        return client.chat.completions.create(**kwargs)
+
     def generate():
         accumulated = ""
         error = None
 
         try:
-            if use_groq:
-                api_key = os.environ.get("GROQ_API_KEY", "")
-                if not api_key:
-                    yield f"event: error\ndata: {json.dumps({'error': 'GROQ_API_KEY not set'})}\n\n"
-                    return
-                client = _groq_client()
-                stream = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
-                    max_tokens=8192,
-                    temperature=0.3,
-                    top_p=0.95,
-                    stream=True,
-                )
-            else:
-                api_key = os.environ.get("NVIDIA_API_KEY", "")
-                if not api_key:
-                    yield f"event: error\ndata: {json.dumps({'error': 'NVIDIA_API_KEY not set'})}\n\n"
-                    return
-                client = _nvidia_client()
-                stream = client.chat.completions.create(
-                    model="deepseek-ai/deepseek-v4-flash",
-                    messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
-                    max_tokens=16384,
-                    temperature=1,
-                    top_p=0.95,
-                    stream=True,
-                )
-
+            stream = _start_stream(model_choice, think_enabled)
             for chunk in stream:
-                delta = chunk.choices[0].delta.content if chunk.choices else None
-                if delta:
-                    accumulated += delta
-                    # Escape the chunk for SSE (newlines must be encoded)
-                    payload = json.dumps({"chunk": delta})
-                    yield f"data: {payload}\n\n"
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+
+                # "Think" reasoning tokens (Nemotron only) — streamed separately
+                # so the frontend can show them in a collapsible thought panel.
+                reasoning = getattr(delta, "reasoning_content", None)
+                if reasoning:
+                    yield f"data: {json.dumps({'reasoning': reasoning})}\n\n"
+
+                content = delta.content if delta else None
+                if content:
+                    accumulated += content
+                    yield f"data: {json.dumps({'chunk': content})}\n\n"
 
         except Exception as e:
             error = str(e)
@@ -616,7 +673,7 @@ def website_send_stream(project_id):
         parse_error = None
 
         # If accumulated is empty, the primary AI returned nothing — fallback to Groq
-        if not accumulated.strip() and not use_groq:
+        if not accumulated.strip() and model_choice != "groq":
             try:
                 groq_api_key = os.environ.get("GROQ_API_KEY", "")
                 if groq_api_key:

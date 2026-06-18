@@ -298,9 +298,9 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
   background:none;flex-shrink:0;
 }
 #input-wrap{
-  display:flex;align-items:center;gap:8px;
+  display:flex;flex-direction:column;gap:8px;
   background:var(--surface);border:1px solid var(--border2);
-  border-radius:22px;padding:10px 8px 10px 16px;
+  border-radius:22px;padding:12px 10px 10px 16px;
   transition:border-color .2s;
 }
 #input-wrap:focus-within{border-color:var(--text3)}
@@ -313,15 +313,78 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
   display:block;
 }
 #chat-input::placeholder{color:var(--text3);opacity:1;line-height:inherit}
+
+/* ── Toolbar row (Think pill · Model picker · spacer · send/stop) ── */
+#input-toolbar{display:flex;align-items:center;gap:7px}
+#input-toolbar .toolbar-spacer{flex:1}
+
+.think-btn{
+  display:flex;align-items:center;gap:6px;flex-shrink:0;
+  padding:7px 13px;border-radius:20px;
+  border:1px solid rgba(96,138,255,.35);
+  background:rgba(96,138,255,.08);
+  color:#6e8bff;font-size:12.5px;font-weight:600;
+  cursor:pointer;transition:background .15s,border-color .15s,opacity .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.think-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.think-btn.active{
+  background:rgba(96,138,255,.2);
+  border-color:rgba(96,138,255,.65);
+}
+.think-btn:disabled{opacity:.35;cursor:not-allowed}
+
+.model-select{position:relative;flex-shrink:0}
+.model-btn{
+  display:flex;align-items:center;gap:5px;
+  padding:7px 11px;border-radius:20px;
+  border:1px solid var(--border2);
+  background:var(--bg);color:var(--text2);
+  font-size:12.5px;font-weight:600;cursor:pointer;
+  max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.model-btn svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.model-menu{
+  position:absolute;bottom:calc(100% + 10px);left:0;
+  background:var(--bg);border:1px solid var(--border2);
+  border-radius:13px;padding:6px;min-width:200px;
+  box-shadow:0 10px 28px rgba(0,0,0,.2);
+  display:none;flex-direction:column;gap:1px;z-index:60;
+}
+.model-menu.open{display:flex}
+.model-option{
+  display:flex;flex-direction:column;align-items:flex-start;
+  padding:8px 10px;border-radius:9px;
+  font-size:13px;font-weight:600;color:var(--text);
+  background:none;border:none;cursor:pointer;text-align:left;width:100%;
+}
+.model-option:active{background:var(--surface)}
+.model-option.selected{color:#6e8bff}
+.model-option .model-sub{font-size:11px;color:var(--text2);font-weight:400;margin-top:1px}
+
 #send-btn{
   width:34px;height:34px;border-radius:50%;flex-shrink:0;
   background:var(--accent);border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  transition:opacity .15s,transform .15s;
+  transition:opacity .15s,transform .15s,background .15s;
 }
 #send-btn:disabled{opacity:.3}
 #send-btn:not(:disabled):active{transform:scale(.9)}
 #send-btn svg{width:15px;height:15px;stroke:var(--accent-fg);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#send-btn.stopping{background:#ef4444}
+#send-btn.stopping svg{stroke:#fff}
+
+/* ── Thinking / reasoning panel (Nemotron "Think" mode) ── */
+.thinking-block{margin:0 0 14px;border-left:2px solid var(--border2);padding-left:12px;animation:fadeUp .2s ease both}
+.thinking-header{display:flex;align-items:center;gap:7px;cursor:pointer;padding:4px 0;color:var(--text2);font-size:12.5px;font-weight:600;-webkit-tap-highlight-color:transparent}
+.thinking-header svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.thinking-header svg.think-spin{animation:spin 1.4s linear infinite}
+.thinking-block.done .thinking-header svg.think-spin{animation:none}
+.thinking-chev{margin-left:auto;transition:transform .2s;flex-shrink:0}
+.thinking-block.collapsed .thinking-chev{transform:rotate(-90deg)}
+.thinking-block.collapsed .thinking-body{display:none}
+.thinking-body{font-size:13px;line-height:1.6;color:var(--text2);font-style:italic;white-space:pre-wrap;padding:4px 2px 2px 0}
+
 
 /* ── Animations ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -524,9 +587,33 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
   <div id="input-dock">
     <div id="input-wrap">
       <textarea id="chat-input" rows="1" placeholder="Describe your website…" maxlength="4000"></textarea>
-      <button id="send-btn" onclick="sendMessage()" disabled>
-        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      </button>
+      <div id="input-toolbar">
+        <button id="think-toggle" class="think-btn" type="button" onclick="toggleThink()" disabled title="Enable step-by-step reasoning (Nemotron 3 Ultra)">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(0 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)"/></svg>
+          <span>Think</span>
+        </button>
+        <div class="toolbar-spacer"></div>
+        <div class="model-select">
+          <button id="model-btn" class="model-btn" type="button" onclick="toggleModelMenu()">
+            <span id="model-label">DeepSeek</span>
+            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="model-menu" class="model-menu">
+            <button class="model-option selected" data-model="nvidia" onclick="selectModel('nvidia')">
+              DeepSeek V4 Flash<span class="model-sub">Default · NVIDIA</span>
+            </button>
+            <button class="model-option" data-model="groq" onclick="selectModel('groq')">
+              Llama 3.3 70B<span class="model-sub">Fast · Groq</span>
+            </button>
+            <button class="model-option" data-model="nemotron" onclick="selectModel('nemotron')">
+              Nemotron 3 Ultra<span class="model-sub">Supports Think mode</span>
+            </button>
+          </div>
+        </div>
+        <button id="send-btn" type="button" onclick="onSendBtnClick()" disabled>
+          <svg id="send-icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -621,6 +708,77 @@ const PROJECT_ID = {{ project.id }};
 let currentFiles = {{ files | tojson }};
 let isSending = false;
 
+// ── Model picker + Think mode ────────────────────────────────
+const MODEL_INFO = {
+  nvidia:   { label: 'DeepSeek',  supportsThink: false },
+  groq:     { label: 'Groq',      supportsThink: false },
+  nemotron: { label: 'Nemotron',  supportsThink: true  },
+};
+let selectedModel = 'nvidia';
+let thinkEnabled = false;
+let currentAbortController = null;
+
+function toggleModelMenu() {
+  document.getElementById('model-menu').classList.toggle('open');
+}
+function selectModel(key) {
+  if (!MODEL_INFO[key]) return;
+  selectedModel = key;
+  document.getElementById('model-label').textContent = MODEL_INFO[key].label;
+  document.querySelectorAll('.model-option').forEach(opt => {
+    opt.classList.toggle('selected', opt.dataset.model === key);
+  });
+  document.getElementById('model-menu').classList.remove('open');
+
+  const thinkBtn = document.getElementById('think-toggle');
+  if (MODEL_INFO[key].supportsThink) {
+    thinkBtn.disabled = false;
+  } else {
+    thinkBtn.disabled = true;
+    thinkEnabled = false;
+    thinkBtn.classList.remove('active');
+  }
+}
+function toggleThink() {
+  const thinkBtn = document.getElementById('think-toggle');
+  if (thinkBtn.disabled) return;
+  thinkEnabled = !thinkEnabled;
+  thinkBtn.classList.toggle('active', thinkEnabled);
+}
+document.addEventListener('click', (e) => {
+  const wrap = document.querySelector('.model-select');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('model-menu').classList.remove('open');
+  }
+});
+
+// Swap the send button between "send" and "stop" visuals/behavior.
+function _setSendBtnSending(sending) {
+  isSending = sending;
+  const btn = document.getElementById('send-btn');
+  const icon = document.getElementById('send-icon');
+  if (sending) {
+    btn.classList.add('stopping');
+    btn.disabled = false;
+    icon.innerHTML = '<rect x="6" y="6" width="12" height="12" rx="2.5"></rect>';
+  } else {
+    btn.classList.remove('stopping');
+    icon.innerHTML = '<line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>';
+    btn.disabled = !input.value.trim();
+  }
+}
+function onSendBtnClick() {
+  if (isSending) {
+    stopGeneration();
+  } else {
+    sendMessage();
+  }
+}
+function stopGeneration() {
+  if (currentAbortController) currentAbortController.abort();
+}
+
+
 // ── Dark mode ─────────────────────────────────────────────────
 function _syncDarkIcons() {
   const isDark = document.documentElement.hasAttribute('data-theme');
@@ -649,10 +807,10 @@ const sendBtn = document.getElementById('send-btn');
 input.addEventListener('input', () => {
   input.style.height = 'auto';
   input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-  sendBtn.disabled = !input.value.trim() || isSending;
+  if (!isSending) sendBtn.disabled = !input.value.trim();
 });
 input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!sendBtn.disabled) sendMessage(); }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!isSending && !sendBtn.disabled) sendMessage(); }
 });
 
 // ── Init ──────────────────────────────────────────────────────
@@ -682,6 +840,7 @@ const liveState = {
   currentFile: null,
   inContent: false,
   stream: null,
+  thinkingEl: null,       // "Think" reasoning panel (Nemotron)
 };
 
 function _liveReset() {
@@ -695,7 +854,30 @@ function _liveReset() {
     currentFile: null,
     inContent: false,
     stream: null,
+    thinkingEl: null,
   });
+}
+
+// ── "Think" reasoning panel ──────────────────────────────────
+function _ensureThinkingBlock() {
+  if (liveState.thinkingEl) return liveState.thinkingEl;
+  const wrap = document.createElement('div');
+  wrap.className = 'thinking-block';
+  wrap.innerHTML =
+    '<div class="thinking-header" onclick="this.parentElement.classList.toggle(\'collapsed\')">' +
+    '<svg class="think-spin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><ellipse cx="12" cy="12" rx="9" ry="3.6"/><ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="3.6" transform="rotate(120 12 12)"/></svg>' +
+    '<span class="thinking-label">Thinking…</span>' +
+    '<svg class="thinking-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>' +
+    '</div><div class="thinking-body"></div>';
+  liveState._chatStream.insertBefore(wrap, liveState._typingEl);
+  liveState.thinkingEl = wrap;
+  return wrap;
+}
+function _finalizeThinkingBlock() {
+  if (liveState.thinkingEl && !liveState.thinkingEl.classList.contains('done')) {
+    liveState.thinkingEl.classList.add('done', 'collapsed');
+    liveState.thinkingEl.querySelector('.thinking-label').textContent = 'Thought process';
+  }
 }
 
 // ── Thought log helpers ───────────────────────────────────────
@@ -902,8 +1084,7 @@ async function sendMessage() {
   const msg = input.value.trim();
   if (!msg || isSending) return;
 
-  isSending = true;
-  sendBtn.disabled = true;
+  _setSendBtnSending(true);
   input.value = '';
   input.style.height = 'auto';
 
@@ -927,17 +1108,22 @@ async function sendMessage() {
   liveState._chatStream = chatStream;
   liveState._typingEl = typingEl;
   liveState._uiReady = false;
+  liveState.thinkingEl = null;
 
   // Show typing indicator
   typingEl.style.display = 'block';
   document.getElementById('typing-label-text').textContent = 'Building your website…';
   scrollBottom();
 
+  currentAbortController = new AbortController();
+  let doneHandled = false;
+
   try {
     const res = await fetch('/project/website/' + PROJECT_ID + '/send-stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg })
+      body: JSON.stringify({ message: msg, model: selectedModel, think: thinkEnabled }),
+      signal: currentAbortController.signal
     });
 
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -947,7 +1133,6 @@ async function sendMessage() {
     let buffer = '';
 
     // ── SSE event processor ────────────────────────────────
-    let doneHandled = false;
     function processSSELines(lines) {
       let eventType = 'message';
       for (const line of lines) {
@@ -999,8 +1184,8 @@ async function sendMessage() {
                   '</div>';
                 chatStream.insertBefore(aiRow, typingEl);
                 scrollBottom();
-                isSending = false;
-                sendBtn.disabled = !input.value.trim();
+                currentAbortController = null;
+                _setSendBtnSending(false);
               }
 
               if (parsed.has_files) {
@@ -1022,6 +1207,17 @@ async function sendMessage() {
               errRow.innerHTML = '<div class="msg-ai-text"><p style="color:#ef4444">' + escHtml(parsed.error || 'Error occurred.') + '</p></div>';
               chatStream.insertBefore(errRow, typingEl);
 
+            } else if (parsed.reasoning !== undefined && parsed.reasoning !== '') {
+              // "Think" mode reasoning tokens (Nemotron) — stream into the panel
+              if (!liveState._uiReady) {
+                liveState._uiReady = true;
+                typingEl.style.display = 'none';
+              }
+              const block = _ensureThinkingBlock();
+              block.querySelector('.thinking-body').textContent += parsed.reasoning;
+              const w = document.getElementById('chat-wrap');
+              if (w.scrollHeight - w.scrollTop - w.clientHeight < 160) w.scrollTop = w.scrollHeight;
+
             } else if (parsed.chunk !== undefined && parsed.chunk !== '') {
               // Lazy-init thought log + code container on first real chunk
               if (!liveState._uiReady) {
@@ -1042,6 +1238,7 @@ async function sendMessage() {
                 chatStream.insertBefore(codeContainer, typingEl);
                 liveState.codeContainer = codeContainer;
               }
+              _finalizeThinkingBlock();
 
               // Upgrade "Thinking" → "Plan ready" once filenames start appearing
               if (liveState.globalStep && liveState.globalStep.className.includes('ts-active')) {
@@ -1104,9 +1301,20 @@ async function sendMessage() {
     }
 
   } catch(e) {
-    // Only show connection error if the done event never successfully fired
-    // (if doneHandled is true, the stream finished fine — this is a post-close cleanup error)
-    if (!doneHandled) {
+    if (e.name === 'AbortError') {
+      // User pressed Stop — leave whatever was already streamed in place.
+      typingEl.style.display = 'none';
+      _finalizeThinkingBlock();
+      if (liveState.globalStep && liveState.globalStep.className.includes('ts-active')) {
+        _stepDone(liveState.globalStep, 'Stopped');
+      }
+      const stopRow = document.createElement('div');
+      stopRow.className = 'msg-ai';
+      stopRow.innerHTML = '<div class="msg-ai-text"><p style="color:var(--text2)">Stopped generating.</p></div>';
+      chatStream.insertBefore(stopRow, typingEl);
+    } else if (!doneHandled) {
+      // Only show connection error if the done event never successfully fired
+      // (if doneHandled is true, the stream finished fine — this is a post-close cleanup error)
       typingEl.style.display = 'none';
       if (liveState.codeContainer && liveState.codeContainer.children.length === 0) {
         liveState.codeContainer.remove();
@@ -1123,10 +1331,10 @@ async function sendMessage() {
   }
 
   // Note: isSending is reset inside _finishUI for normal flow,
-  // but reset here too as safety net for error paths
+  // but reset here too as safety net for error/stop paths
+  currentAbortController = null;
   if (isSending) {
-    isSending = false;
-    sendBtn.disabled = !input.value.trim();
+    _setSendBtnSending(false);
   }
   scrollBottom();
 }
