@@ -608,9 +608,6 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
             <button class="model-option" data-model="nemotron" onclick="selectModel('nemotron')">
               Nemotron 3 Ultra<span class="model-sub">Supports Think mode</span>
             </button>
-            <button class="model-option" data-model="kimi" onclick="selectModel('kimi')">
-              Kimi K2.6<span class="model-sub">Moonshot · NVIDIA</span>
-            </button>
           </div>
         </div>
         <button id="send-btn" type="button" onclick="onSendBtnClick()" disabled>
@@ -716,7 +713,6 @@ const MODEL_INFO = {
   nvidia:   { label: 'DeepSeek',  supportsThink: false },
   groq:     { label: 'Groq',      supportsThink: false },
   nemotron: { label: 'Nemotron',  supportsThink: true  },
-  kimi:     { label: 'Kimi',      supportsThink: false },
 };
 let selectedModel = 'nvidia';
 let thinkEnabled = false;
@@ -1123,7 +1119,61 @@ async function sendMessage() {
   let doneHandled = false;
 
   try {
-    const res = await fetch('/project/website/' + PROJECT_ID + '/send-stream', {
+    // Nemotron and Kimi use the direct /send endpoint (no SSE) to avoid Railway timeout
+    const useDirectEndpoint = (selectedModel === 'nemotron' || selectedModel === 'kimi');
+    const endpoint = useDirectEndpoint
+      ? '/project/website/' + PROJECT_ID + '/send'
+      : '/project/website/' + PROJECT_ID + '/send-stream';
+
+    if (useDirectEndpoint) {
+      // ── Direct JSON path (Nemotron / Kimi) ──────────────────────────────
+      try {
+        const directRes = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, model: selectedModel }),
+          signal: currentAbortController.signal
+        });
+        const directData = await directRes.json();
+        typingEl.style.display = 'none';
+
+        const files = directData.files || [];
+        if (files.length > 0) {
+          _liveFinalize(files);
+          currentFiles = files;
+          renderFileList(files);
+          updateFilesBadge(files.length);
+          document.getElementById('dev-link').style.display = 'flex';
+        }
+
+        const aiRow = document.createElement('div');
+        aiRow.className = 'msg-ai';
+        if (directData.error && !directData.message) {
+          aiRow.innerHTML = '<div class="msg-ai-text"><p style="color:#ef4444">' + escHtml(directData.error) + '</p></div>';
+        } else {
+          aiRow.innerHTML = '<div class="msg-ai-text">' + renderAiText(directData.message || 'Done!') + '</div>' +
+            '<div class="msg-actions">' +
+            '<button class="action-btn" onclick="copyText(this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>' +
+            '<button class="action-btn" title="Good"><svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></button>' +
+            '<button class="action-btn" title="Bad"><svg viewBox="0 0 24 24"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg></button>' +
+            '</div>';
+        }
+        chatStream.insertBefore(aiRow, typingEl);
+        scrollBottom();
+      } catch(e) {
+        typingEl.style.display = 'none';
+        const errRow = document.createElement('div');
+        errRow.className = 'msg-ai';
+        errRow.innerHTML = '<div class="msg-ai-text"><p style="color:#ef4444">Connection error. Please try again.</p></div>';
+        chatStream.insertBefore(errRow, typingEl);
+      }
+      currentAbortController = null;
+      _setSendBtnSending(false);
+      scrollBottom();
+      return;
+    }
+
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: msg, model: selectedModel, think: thinkEnabled }),

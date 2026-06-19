@@ -54,7 +54,7 @@ def _nvidia3_client():
     )
 
 
-# ─── NVIDIA NIM client #3 (Kimi K2.6) ───────────────────────────────────────
+# ─── NVIDIA NIM client #4 (Kimi K2.6) ───────────────────────────────────────
 
 def _nvidia4_client():
     return OpenAI(
@@ -433,6 +433,102 @@ def _call_groq(messages, current_files):
         return None, str(e)
 
 
+# ─── Nemotron direct call ────────────────────────────────────────────────────
+
+def _call_nemotron(messages, current_files):
+    """
+    Direct (non-streaming) call to Nemotron 3 Ultra via NVIDIA NIM.
+    Returns (parsed_dict, error_str).
+    """
+    api_key = os.environ.get("NVIDIA_API_3", "")
+    if not api_key:
+        return None, "NVIDIA_API_3 not set in environment."
+
+    files_context = ""
+    if current_files:
+        files_context = "\n\nCURRENT FILES IN PROJECT:\n"
+        for f in current_files:
+            files_context += f"\n--- {f['filename']} ---\n{f['content']}\n"
+
+    api_messages = []
+    for i, m in enumerate(messages):
+        role = "user" if m["sender"] == "You" else "assistant"
+        content = m["text"]
+        if i == len(messages) - 1 and role == "user" and files_context:
+            content = content + files_context
+        api_messages.append({"role": role, "content": content})
+
+    try:
+        client = _nvidia3_client()
+        response = client.chat.completions.create(
+            model="nvidia/nemotron-3-ultra-550b-a55b",
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
+            max_tokens=32768,
+            temperature=0.6,
+            top_p=0.95,
+            stream=False,
+        )
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1] if "\n" in raw else raw
+            raw = raw.rsplit("```", 1)[0].strip()
+        if raw.startswith("json"):
+            raw = raw[4:].strip()
+        return json.loads(raw), None
+    except json.JSONDecodeError as e:
+        return None, f"AI returned invalid JSON: {str(e)}"
+    except Exception as e:
+        return None, str(e)
+
+
+# ─── Kimi K2.6 direct call ───────────────────────────────────────────────────
+
+def _call_kimi_direct(messages, current_files):
+    """
+    Direct (non-streaming) call to Kimi K2.6 via NVIDIA NIM.
+    Returns (parsed_dict, error_str).
+    """
+    api_key = os.environ.get("NVIDIA_API_4", "")
+    if not api_key:
+        return None, "NVIDIA_API_4 not set in environment."
+
+    files_context = ""
+    if current_files:
+        files_context = "\n\nCURRENT FILES IN PROJECT:\n"
+        for f in current_files:
+            files_context += f"\n--- {f['filename']} ---\n{f['content']}\n"
+
+    api_messages = []
+    for i, m in enumerate(messages):
+        role = "user" if m["sender"] == "You" else "assistant"
+        content = m["text"]
+        if i == len(messages) - 1 and role == "user" and files_context:
+            content = content + files_context
+        api_messages.append({"role": role, "content": content})
+
+    try:
+        client = _nvidia4_client()
+        response = client.chat.completions.create(
+            model="moonshotai/kimi-k2.6",
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
+            max_tokens=16384,
+            temperature=0.7,
+            top_p=0.95,
+            stream=False,
+        )
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1] if "\n" in raw else raw
+            raw = raw.rsplit("```", 1)[0].strip()
+        if raw.startswith("json"):
+            raw = raw[4:].strip()
+        return json.loads(raw), None
+    except json.JSONDecodeError as e:
+        return None, f"AI returned invalid JSON: {str(e)}"
+    except Exception as e:
+        return None, str(e)
+
+
 # ─── Model registry ──────────────────────────────────────────────────────────
 # Maps the model key sent from the frontend picker to its API config.
 # Only "nemotron" supports the "Think" toggle (enable_thinking via
@@ -540,8 +636,19 @@ def website_send(project_id):
 
     messages.append({"sender": "You", "text": user_msg})
 
-    # Call chosen backend directly
-    call_fn = _call_groq if use_groq else _call_kimi
+    # Model selection — frontend sends { model: "nvidia"|"groq"|"nemotron"|"kimi" }
+    selected_model = data.get("model", DEFAULT_MODEL)
+
+    # Route to the correct direct-call function based on selected model
+    if use_groq or selected_model == "groq":
+        call_fn = _call_groq
+    elif selected_model == "nemotron":
+        call_fn = _call_nemotron
+    elif selected_model == "kimi":
+        call_fn = _call_kimi_direct
+    else:
+        call_fn = _call_kimi  # default: DeepSeek via nvidia
+
     result, error = call_fn(messages, current_files)
 
     if result:
