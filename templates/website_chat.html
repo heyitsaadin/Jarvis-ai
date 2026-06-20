@@ -113,9 +113,9 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 #project-sub{display:none}
 
 /* ── Chat scroll area ── */
-#chat-wrap{flex:1;overflow-y:auto;overflow-x:hidden}
+#chat-wrap{flex:1;overflow-y:auto;overflow-x:hidden;padding-top:calc(64px + env(safe-area-inset-top,0px));}
 #chat-wrap::-webkit-scrollbar{display:none}
-#chat-stream{padding:20px 16px 12px;display:flex;flex-direction:column;gap:0}
+#chat-stream{padding:20px 16px calc(160px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:0}
 
 /* ── User bubble ── */
 .msg-user{
@@ -323,38 +323,37 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
 .chip:active{border-color:var(--accent);color:var(--text)}
 
 /* ── Input dock ── */
+/* ── Dock wrapper: fixed bottom, gradient fade behind it ── */
 #input-dock{
-  padding:0 12px calc(16px + var(--safe-b));
-  border-top:none;
-  background:transparent;
-  flex-shrink:0;
-  position:relative;
+  position:fixed;bottom:0;left:0;right:0;
+  padding:16px 16px calc(22px + env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to top, var(--bg) 65%, transparent);
+  display:flex;flex-direction:column;gap:8px;
+  z-index:30;
 }
-/* Gradient so chat fades into the input zone */
-#input-dock::before{
-  content:'';
-  position:absolute;
-  left:0;right:0;bottom:100%;
-  height:60px;
-  background:linear-gradient(to top, var(--bg) 40%, transparent);
-  pointer-events:none;
-}
+/* ── Input wrap: frosted glass card ── */
 #input-wrap{
-  display:flex;flex-direction:column;gap:10px;
-  /* Match Lovable: near-invisible in dark, subtle in light */
-  background:var(--surface);
-  border:1.5px solid var(--border2);
-  border-radius:28px;
-  padding:14px 12px 12px 18px;
-  transition:border-color .2s;
-  box-shadow:0 -1px 0 var(--border);
+  display:flex;flex-direction:column;gap:6px;
+  background:rgba(255,255,255,0.06);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.10);
+  border-radius:26px;
+  padding:7px;
+  transition:background .2s,border-color .2s,box-shadow .2s;
+  box-shadow:0 8px 32px rgba(0,0,0,0.12);
 }
 [data-theme="dark"] #input-wrap{
-  background:#141414;
-  border-color:rgba(255,255,255,0.09);
+  background:rgba(255,255,255,0.05);
+  border-color:rgba(255,255,255,0.08);
 }
-#input-wrap:focus-within{border-color:rgba(255,255,255,0.2)}
-[data-theme="dark"] #input-wrap:focus-within{border-color:rgba(255,255,255,0.2)}
+#input-wrap:focus-within{
+  background:rgba(255,255,255,0.09);
+  border-color:rgba(255,255,255,0.18);
+  box-shadow:0 8px 32px rgba(0,0,0,0.18);
+}
+[data-theme="dark"] #input-wrap:focus-within{
+  background:rgba(255,255,255,0.07);
+}
 #chat-input{
   flex:1;background:none;border:none;outline:none;
   font-size:14.5px;color:var(--text);resize:none;
@@ -578,25 +577,27 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
 
   <!-- TOPBAR -->
   <div id="topbar">
+    <!-- Left: back circle + menu circle -->
     <div id="topbar-left">
-      <!-- Back button -->
-      <button class="topbar-btn" onclick="history.back()" aria-label="Back">
+      <button class="topbar-btn-back" onclick="history.back()" aria-label="Back">
         <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <!-- Menu button -->
-      <button class="topbar-btn" onclick="openDrawer()" aria-label="Menu">
+      <button class="topbar-btn-menu" onclick="openDrawer()" aria-label="Menu">
         <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
     </div>
+    <!-- Center: frosted pill with project name + chevron -->
     <div id="topbar-center">
       <div id="project-name">{{ project.name }}</div>
-      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--text2)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.6"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div style="display:flex;align-items:center;gap:4px">
+    <!-- Right: frosted pill cluster -->
+    <div id="topbar-right">
       <button class="topbar-btn" id="dark-toggle" onclick="toggleDark()" aria-label="Toggle dark mode">
         <svg id="dark-icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         <svg id="dark-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       </button>
+      <div class="topbar-divider"></div>
       <button class="topbar-btn" onclick="if(confirm('Start new chat? History stays saved.'))location.reload()" aria-label="New chat">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       </button>
