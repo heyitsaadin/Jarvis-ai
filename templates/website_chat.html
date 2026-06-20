@@ -60,62 +60,75 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 #app{display:flex;flex-direction:column;height:100dvh;padding-top:var(--safe-t)}
 
 /* ── Topbar ── */
+/* ── Topbar: fixed, fully transparent — pills float over content ── */
 #topbar{
   display:flex;align-items:center;justify-content:space-between;
-  padding:12px 16px 11px;
-  border-bottom:none;
-  flex-shrink:0;
-  position:relative;
+  padding:12px 14px;
+  padding-top:calc(12px + env(safe-area-inset-top,0px));
+  position:fixed;top:0;left:0;right:0;
+  background:transparent !important;
+  border:none;z-index:100;
+  pointer-events:none;
 }
-.topbar-btn{
-  width:36px;height:36px;border-radius:50%;
-  background:var(--surface2);
-  border:1px solid var(--border2);
-  cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  color:var(--text2);flex-shrink:0;
-  transition:background .15s,color .15s;
-  box-shadow:0 1px 4px rgba(0,0,0,0.08);
+#topbar > *{pointer-events:auto;}
+#topbar-left{display:flex;align-items:center;gap:8px;}
+
+/* Shared frosted glass pill/circle mixin */
+.topbar-pill{
+  display:flex;align-items:center;
+  background:rgba(255,255,255,0.72);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(0,0,0,0.07);
+  box-shadow:0 2px 12px rgba(0,0,0,0.10);
+  transition:opacity .15s;
+  -webkit-tap-highlight-color:transparent;
 }
-[data-theme="dark"] .topbar-btn{
-  background:#1e1e1e;
-  border-color:rgba(255,255,255,0.11);
-  box-shadow:0 1px 6px rgba(0,0,0,0.3);
+[data-theme="dark"] .topbar-pill{
+  background:rgba(35,35,35,0.78);
+  border-color:rgba(255,255,255,0.10);
+  box-shadow:0 2px 16px rgba(0,0,0,0.45);
 }
-.topbar-btn:active{opacity:.7}
-.topbar-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-#topbar-left{display:flex;align-items:center;gap:4px}
+.topbar-pill:active{opacity:.75;}
+
+/* Left standalone circle buttons */
+.topbar-btn-solo{
+  width:40px;height:40px;border-radius:50%;
+  justify-content:center;cursor:pointer;border:none;color:var(--text);
+}
+.topbar-btn-solo svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+
+/* Center title pill */
 #topbar-center{
   position:absolute;left:50%;transform:translateX(-50%);
-  display:flex;align-items:center;gap:7px;
-  padding:9px 18px 9px 16px;
-  border-radius:999px;
-  /* Lovable-style: solid dark pill in dark mode, light in light mode */
-  background:var(--surface2);
-  border:1.5px solid var(--border2);
-  box-shadow:0 2px 8px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.09);
-  cursor:pointer;
-  white-space:nowrap;
-  pointer-events:all;
-  transition:background .15s, border-color .15s;
+  gap:6px;padding:9px 15px;border-radius:999px;
+  cursor:pointer;white-space:nowrap;color:var(--text);
 }
-[data-theme="dark"] #topbar-center{
-  background:#1e1e1e;
-  border-color:rgba(255,255,255,0.13);
-  box-shadow:0 2px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+#project-name{font-size:14px;font-weight:700;letter-spacing:-.3px;line-height:1.2;}
+#project-sub{display:none;}
+
+/* Right grouped pill — buttons sit inside it */
+#topbar-right{
+  border-radius:999px;overflow:hidden;height:40px;
 }
-#topbar-center:active{opacity:.8}
-#project-name{
-  font-size:14px;font-weight:700;color:var(--text);
-  white-space:nowrap;letter-spacing:-.3px;
-  line-height:1.2;
+/* Buttons inside the right pill */
+.topbar-btn{
+  width:44px;height:40px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text);
+  background:none;border:none;
+  transition:background .13s;
+  -webkit-tap-highlight-color:transparent;
 }
-#project-sub{display:none}
+.topbar-btn:active{background:rgba(0,0,0,0.07);}
+[data-theme="dark"] .topbar-btn:active{background:rgba(255,255,255,0.10);}
+.topbar-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.topbar-divider{width:1px;height:22px;background:rgba(0,0,0,0.09);flex-shrink:0;}
+[data-theme="dark"] .topbar-divider{background:rgba(255,255,255,0.13);}
 
 /* ── Chat scroll area ── */
-#chat-wrap{flex:1;overflow-y:auto;overflow-x:hidden;padding-top:calc(64px + env(safe-area-inset-top,0px));}
+#chat-wrap{flex:1;overflow-y:auto;overflow-x:hidden;}
 #chat-wrap::-webkit-scrollbar{display:none}
-#chat-stream{padding:20px 16px calc(160px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:0}
+#chat-stream{padding:calc(74px + env(safe-area-inset-top,0px)) 16px calc(160px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:0}
 
 /* ── User bubble ── */
 .msg-user{
@@ -323,37 +336,38 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
 .chip:active{border-color:var(--accent);color:var(--text)}
 
 /* ── Input dock ── */
-/* ── Dock wrapper: fixed bottom, gradient fade behind it ── */
 #input-dock{
-  position:fixed;bottom:0;left:0;right:0;
-  padding:16px 16px calc(22px + env(safe-area-inset-bottom,0px));
-  background:linear-gradient(to top, var(--bg) 65%, transparent);
-  display:flex;flex-direction:column;gap:8px;
-  z-index:30;
+  padding:0 12px calc(16px + var(--safe-b));
+  border-top:none;
+  background:transparent;
+  flex-shrink:0;
+  position:relative;
 }
-/* ── Input wrap: frosted glass card ── */
+/* Gradient so chat fades into the input zone */
+#input-dock::before{
+  content:'';
+  position:absolute;
+  left:0;right:0;bottom:100%;
+  height:60px;
+  background:linear-gradient(to top, var(--bg) 40%, transparent);
+  pointer-events:none;
+}
 #input-wrap{
-  display:flex;flex-direction:column;gap:6px;
-  background:rgba(255,255,255,0.06);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  border:1px solid rgba(255,255,255,0.10);
-  border-radius:26px;
-  padding:7px;
-  transition:background .2s,border-color .2s,box-shadow .2s;
-  box-shadow:0 8px 32px rgba(0,0,0,0.12);
+  display:flex;flex-direction:column;gap:10px;
+  /* Match Lovable: near-invisible in dark, subtle in light */
+  background:var(--surface);
+  border:1.5px solid var(--border2);
+  border-radius:28px;
+  padding:14px 12px 12px 18px;
+  transition:border-color .2s;
+  box-shadow:0 -1px 0 var(--border);
 }
 [data-theme="dark"] #input-wrap{
-  background:rgba(255,255,255,0.05);
-  border-color:rgba(255,255,255,0.08);
+  background:#141414;
+  border-color:rgba(255,255,255,0.09);
 }
-#input-wrap:focus-within{
-  background:rgba(255,255,255,0.09);
-  border-color:rgba(255,255,255,0.18);
-  box-shadow:0 8px 32px rgba(0,0,0,0.18);
-}
-[data-theme="dark"] #input-wrap:focus-within{
-  background:rgba(255,255,255,0.07);
-}
+#input-wrap:focus-within{border-color:rgba(255,255,255,0.2)}
+[data-theme="dark"] #input-wrap:focus-within{border-color:rgba(255,255,255,0.2)}
 #chat-input{
   flex:1;background:none;border:none;outline:none;
   font-size:14.5px;color:var(--text);resize:none;
@@ -577,22 +591,22 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
 
   <!-- TOPBAR -->
   <div id="topbar">
-    <!-- Left: back circle + menu circle -->
+    <!-- Left: two standalone frosted circles -->
     <div id="topbar-left">
-      <button class="topbar-btn-back" onclick="history.back()" aria-label="Back">
+      <button class="topbar-pill topbar-btn-solo" onclick="history.back()" aria-label="Back">
         <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <button class="topbar-btn-menu" onclick="openDrawer()" aria-label="Menu">
+      <button class="topbar-pill topbar-btn-solo" onclick="openDrawer()" aria-label="Menu">
         <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
     </div>
-    <!-- Center: frosted pill with project name + chevron -->
-    <div id="topbar-center">
+    <!-- Center: frosted title pill -->
+    <div id="topbar-center" class="topbar-pill">
       <div id="project-name">{{ project.name }}</div>
-      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.6"><polyline points="6 9 12 15 18 9"/></svg>
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.5"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <!-- Right: frosted pill cluster -->
-    <div id="topbar-right">
+    <!-- Right: frosted grouped pill with divider -->
+    <div id="topbar-right" class="topbar-pill">
       <button class="topbar-btn" id="dark-toggle" onclick="toggleDark()" aria-label="Toggle dark mode">
         <svg id="dark-icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         <svg id="dark-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
