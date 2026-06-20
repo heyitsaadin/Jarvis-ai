@@ -94,8 +94,10 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
 .topbar-btn-solo{
   width:40px;height:40px;border-radius:50%;
   justify-content:center;cursor:pointer;border:none;color:var(--text);
+  transition:transform .12s cubic-bezier(.22,1,.36,1),background .13s;
 }
-.topbar-btn-solo svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+.topbar-btn-solo:active{transform:scale(.88)}
+.topbar-btn-solo svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
 
 /* Center title pill */
 #topbar-center{
@@ -116,12 +118,12 @@ html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-f
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;color:var(--text);
   background:none;border:none;
-  transition:background .13s;
+  transition:background .13s,transform .12s cubic-bezier(.22,1,.36,1);
   -webkit-tap-highlight-color:transparent;
 }
-.topbar-btn:active{background:rgba(0,0,0,0.07);}
-[data-theme="dark"] .topbar-btn:active{background:rgba(255,255,255,0.10);}
-.topbar-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.topbar-btn:active{background:rgba(0,0,0,0.07);transform:scale(.88)}
+[data-theme="dark"] .topbar-btn:active{background:rgba(255,255,255,0.10)}
+.topbar-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
 .topbar-divider{width:1px;height:22px;background:rgba(0,0,0,0.09);flex-shrink:0;}
 [data-theme="dark"] .topbar-divider{background:rgba(255,255,255,0.13);}
 
@@ -262,9 +264,10 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
   width:30px;height:30px;border-radius:8px;
   background:none;border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  color:var(--text3);transition:color .15s,background .15s;
+  color:var(--text3);transition:color .15s,background .15s,transform .12s cubic-bezier(.22,1,.36,1);
 }
 .action-btn:hover{color:var(--text2);background:var(--surface)}
+.action-btn:active{transform:scale(.85)}
 .action-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .action-btn.regen{margin-left:auto}
 
@@ -317,13 +320,16 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
   justify-content:center;gap:14px;
   padding:60px 24px 32px;text-align:center;
   min-height:260px;
+  animation:fadeUp .35s ease both;
 }
 #empty-state .es-icon{
   width:48px;height:48px;border-radius:14px;
   background:var(--surface);
   border:1px solid var(--border2);
   display:flex;align-items:center;justify-content:center;font-size:22px;
+  animation:breathe 3.2s ease-in-out infinite;
 }
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
 #empty-state h3{font-size:18px;font-weight:700;letter-spacing:-.3px}
 #empty-state p{font-size:13px;color:var(--text2);line-height:1.6;max-width:260px}
 .chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:2px}
@@ -331,9 +337,9 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
   background:var(--surface);border:1px solid var(--border2);
   border-radius:20px;padding:7px 14px;
   font-size:12.5px;color:var(--text2);cursor:pointer;
-  transition:border-color .15s,color .15s;
+  transition:border-color .15s,color .15s,transform .15s cubic-bezier(.22,1,.36,1),background .15s;
 }
-.chip:active{border-color:var(--accent);color:var(--text)}
+.chip:active{border-color:var(--accent);color:var(--text);transform:scale(.94);background:var(--surface2)}
 
 /* ── Input dock: truly floating, no background ── */
 #input-dock{
@@ -353,7 +359,7 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
   border:1px solid rgba(255,255,255,0.13);
   border-radius:28px;
   padding:14px 12px 12px 18px;
-  transition:border-color .2s,background .2s;
+  transition:border-color .25s ease,background .25s ease,box-shadow .25s ease;
   box-shadow:0 8px 32px rgba(0,0,0,0.18);
   pointer-events:auto;
 }
@@ -372,11 +378,15 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
 #chat-input{
   flex:1;background:none;border:none;outline:none;
   font-size:14.5px;color:var(--text);resize:none;
-  line-height:1.5;max-height:120px;min-height:22px;
+  line-height:1.5;max-height:42vh;min-height:22px;
   padding:0;margin:0;font-family:inherit;
   vertical-align:middle;
   display:block;
+  overflow-y:auto;
+  transition:height .12s ease;
 }
+#chat-input::-webkit-scrollbar{width:4px}
+#chat-input::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
 #chat-input::placeholder{color:var(--text3);opacity:1;line-height:inherit}
 
 /* ── Toolbar row (Think pill · Model picker · spacer · send/stop) ── */
@@ -392,9 +402,10 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
   -webkit-backdrop-filter:blur(12px) saturate(180%);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 1px 6px rgba(96,138,255,.12);
   color:#6e8bff;font-size:12.5px;font-weight:600;
-  cursor:pointer;transition:background .18s,border-color .18s,box-shadow .18s,opacity .15s;
+  cursor:pointer;transition:background .18s,border-color .18s,box-shadow .18s,opacity .15s,transform .15s cubic-bezier(.22,1,.36,1);
   -webkit-tap-highlight-color:transparent;
 }
+.think-btn:not(:disabled):active{transform:scale(.92)}
 [data-theme="dark"] .think-btn{
   background:rgba(96,138,255,.12);
   border-color:rgba(96,138,255,.32);
@@ -420,35 +431,56 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
   background:var(--bg);color:var(--text2);
   font-size:12.5px;font-weight:600;cursor:pointer;
   max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:transform .15s cubic-bezier(.22,1,.36,1),border-color .15s;
 }
-.model-btn svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.model-btn:active{transform:scale(.95)}
+.model-btn svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;transition:transform .2s cubic-bezier(.22,1,.36,1)}
+.model-select.open .model-btn svg{transform:rotate(180deg)}
 .model-menu{
   position:absolute;bottom:calc(100% + 10px);left:0;
   background:var(--bg);border:1px solid var(--border2);
-  border-radius:13px;padding:6px;min-width:200px;
+  border-radius:14px;padding:5px;min-width:208px;
   box-shadow:0 10px 28px rgba(0,0,0,.2);
-  display:none;flex-direction:column;gap:1px;z-index:60;
+  display:flex;flex-direction:column;z-index:60;
+  visibility:hidden;pointer-events:none;
+  transform:translateY(6px) scale(.97);opacity:0;
+  transition:transform .16s cubic-bezier(.22,1,.36,1),opacity .14s ease,visibility .16s;
+  transform-origin:bottom left;
 }
-.model-menu.open{display:flex}
+.model-menu.open{visibility:visible;pointer-events:auto;transform:translateY(0) scale(1);opacity:1}
 .model-option{
-  display:flex;flex-direction:column;align-items:flex-start;
-  padding:8px 10px;border-radius:9px;
-  font-size:13px;font-weight:600;color:var(--text);
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;
+  gap:2px;
+  padding:9px 11px;border-radius:10px;
+  font-size:13px;font-weight:600;color:var(--text);line-height:1.25;
   background:none;border:none;cursor:pointer;text-align:left;width:100%;
+  transition:background .15s,transform .12s;
+  opacity:0;transform:translateY(4px);
 }
-.model-option:active{background:var(--surface)}
+.model-menu.open .model-option{
+  animation:optionIn .22s cubic-bezier(.22,1,.36,1) forwards;
+}
+.model-menu.open .model-option:nth-child(1){animation-delay:.02s}
+.model-menu.open .model-option:nth-child(2){animation-delay:.06s}
+.model-menu.open .model-option:nth-child(3){animation-delay:.10s}
+@keyframes optionIn{to{opacity:1;transform:translateY(0)}}
+.model-option:active{background:var(--surface);transform:scale(.98)}
+@media (hover:hover){.model-option:hover{background:var(--surface)}}
 .model-option.selected{color:#6e8bff}
-.model-option .model-sub{font-size:11px;color:var(--text2);font-weight:400;margin-top:1px}
+.model-option .model-name{display:block;width:100%}
+.model-option .model-sub{font-size:11px;color:var(--text2);font-weight:500;line-height:1.3;display:block;width:100%}
+.model-option + .model-option{margin-top:1px}
 
 #send-btn{
   width:34px;height:34px;border-radius:50%;flex-shrink:0;
   background:var(--accent);border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  transition:opacity .15s,transform .15s,background .15s;
+  transition:opacity .2s,transform .25s cubic-bezier(.34,1.56,.64,1),background .15s;
 }
-#send-btn:disabled{opacity:.3}
-#send-btn:not(:disabled):active{transform:scale(.9)}
-#send-btn svg{width:15px;height:15px;stroke:var(--accent-fg);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#send-btn:disabled{opacity:.3;transform:scale(.92)}
+#send-btn:not(:disabled){transform:scale(1)}
+#send-btn:not(:disabled):active{transform:scale(.86)}
+#send-btn svg{width:15px;height:15px;stroke:var(--accent-fg);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
 #send-btn.stopping{background:#ef4444}
 #send-btn.stopping svg{stroke:#fff}
 
@@ -470,14 +502,14 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
 /* ── Toast ── */
 #toast{
   position:fixed;bottom:calc(80px + var(--safe-b));left:50%;
-  transform:translateX(-50%) translateY(6px);
+  transform:translateX(-50%) translateY(10px) scale(.95);
   background:var(--surface2);border:1px solid var(--border2);
   border-radius:10px;padding:8px 16px;
   font-size:12.5px;font-weight:600;color:var(--text);
   opacity:0;pointer-events:none;z-index:999;
-  transition:opacity .2s,transform .2s;white-space:nowrap;
+  transition:opacity .25s,transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;
 }
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
 
 /* ── Side drawer ── */
 #drawer-overlay{
@@ -541,9 +573,10 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
 .file-item{
   display:flex;align-items:center;gap:10px;
   padding:10px 8px;border-radius:9px;
-  cursor:pointer;transition:background .15s;
+  cursor:pointer;transition:background .15s,transform .12s cubic-bezier(.22,1,.36,1);
 }
 .file-item:hover{background:var(--surface)}
+.file-item:active{transform:scale(.97);background:var(--surface)}
 .file-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .file-icon.html{background:rgba(239,100,68,.12)}
 .file-icon.css{background:rgba(59,130,246,.12)}
@@ -583,7 +616,9 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
   padding:4px 10px;border-radius:7px;font-size:12px;font-weight:600;
   background:var(--bg);border:1px solid var(--border2);
   color:var(--text2);cursor:pointer;
+  transition:transform .12s cubic-bezier(.22,1,.36,1),background .15s;
 }
+.version-restore:active{transform:scale(.92);background:var(--surface)}
 .version-empty{text-align:center;color:var(--text2);font-size:13px;padding:32px 0}
 </style>
 </head>
@@ -680,13 +715,13 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
           </button>
           <div id="model-menu" class="model-menu">
             <button class="model-option selected" data-model="nvidia" onclick="selectModel('nvidia')">
-              DeepSeek V4 Flash<span class="model-sub">Default · NVIDIA</span>
+              <span class="model-name">DeepSeek V4 Flash</span><span class="model-sub">Default · NVIDIA</span>
             </button>
             <button class="model-option" data-model="groq" onclick="selectModel('groq')">
-              Llama 3.3 70B<span class="model-sub">Fast · Groq</span>
+              <span class="model-name">Llama 3.3 70B</span><span class="model-sub">Fast · Groq</span>
             </button>
             <button class="model-option" data-model="nemotron" onclick="selectModel('nemotron')">
-              Nemotron 3 Ultra<span class="model-sub">Supports Think mode</span>
+              <span class="model-name">Nemotron 3 Ultra</span><span class="model-sub">Supports Think mode</span>
             </button>
           </div>
         </div>
@@ -799,7 +834,19 @@ let thinkEnabled = false;
 let currentAbortController = null;
 
 function toggleModelMenu() {
-  document.getElementById('model-menu').classList.toggle('open');
+  const menu = document.getElementById('model-menu');
+  if (menu.classList.contains('open')) {
+    closeModelMenu();
+  } else {
+    menu.classList.add('open');
+    document.querySelector('.model-select').classList.add('open');
+  }
+}
+function closeModelMenu() {
+  const menu = document.getElementById('model-menu');
+  if (!menu.classList.contains('open')) return;
+  menu.classList.remove('open');
+  document.querySelector('.model-select').classList.remove('open');
 }
 function selectModel(key) {
   if (!MODEL_INFO[key]) return;
@@ -808,7 +855,7 @@ function selectModel(key) {
   document.querySelectorAll('.model-option').forEach(opt => {
     opt.classList.toggle('selected', opt.dataset.model === key);
   });
-  document.getElementById('model-menu').classList.remove('open');
+  closeModelMenu();
 
   const thinkBtn = document.getElementById('think-toggle');
   if (MODEL_INFO[key].supportsThink) {
@@ -828,7 +875,7 @@ function toggleThink() {
 document.addEventListener('click', (e) => {
   const wrap = document.querySelector('.model-select');
   if (wrap && !wrap.contains(e.target)) {
-    document.getElementById('model-menu').classList.remove('open');
+    closeModelMenu();
   }
 });
 
@@ -886,7 +933,8 @@ const input   = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
 input.addEventListener('input', () => {
   input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  const maxH = window.innerHeight * 0.42;
+  input.style.height = Math.min(input.scrollHeight, maxH) + 'px';
   if (!isSending) sendBtn.disabled = !input.value.trim();
 });
 input.addEventListener('keydown', e => {
