@@ -159,7 +159,7 @@ def _run_image_analysis(img_prompt, session_messages_copy, img_src, username, ch
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
             json={
-                "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                "model": "meta-llama/llama-4-maverick-17b-128e-instruct",
                 "messages": [{"role": "user", "content": content}],
                 "max_tokens": 400
             },
@@ -516,7 +516,7 @@ def _groq_profile_update(username, last_message):
         res = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
-            json={"model": "llama-3.1-8b-instant", "messages": [{"role": "user", "content": prompt}], "max_tokens": 120, "temperature": 0.4},
+            json={"model": "openai/gpt-oss-20b", "messages": [{"role": "user", "content": prompt}], "max_tokens": 120, "temperature": 0.4},
             timeout=15
         )
         raw = res.json()["choices"][0]["message"]["content"].strip()
@@ -1045,7 +1045,7 @@ def _do_google_search(query, user_msg=None):
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
                 json={
-                    "model": "llama-3.1-8b-instant",
+                    "model": "openai/gpt-oss-20b",
                     "messages": [
                         {"role": "system", "content": "Answer using ONLY the Wikipedia results below. Be concise (2-3 sentences). Don't say 'based on search results' or 'according to'."},
                         {"role": "user", "content": f"Question: {user_msg}\n\nWikipedia results:\n{context}"}
@@ -1088,7 +1088,7 @@ def analyse_generated_image(img_prompt, user_question):
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
             json={
-                "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                "model": "meta-llama/llama-4-maverick-17b-128e-instruct",
                 "messages": [{"role": "user", "content": content}],
                 "max_tokens": 500
             },
@@ -1323,7 +1323,7 @@ def ask_jarvis_brain(prompt, history=None):
     messages = [{"role": "system", "content": system_msg}]
     messages.extend(clean_msgs)
     messages.append({"role": "user", "content": prompt})
-    data = {"model": "llama-3.1-8b-instant", "messages": messages, "max_tokens": 400}
+    data = {"model": "openai/gpt-oss-20b", "messages": messages, "max_tokens": 400}
     for attempt in range(2):
         try:
             raw = requests.post(url, headers=headers, json=data, timeout=20).json()
@@ -1424,7 +1424,7 @@ SECURITY RULES:
     messages = [{"role": "system", "content": final_system}]
     messages.extend(clean_msgs)
     messages.append({"role": "user", "content": prompt})
-    data = {"model": "llama-3.1-8b-instant", "messages": messages, "max_tokens": 512}
+    data = {"model": "openai/gpt-oss-20b", "messages": messages, "max_tokens": 512}
     for attempt in range(2):
         try:
             res = requests.post(url, headers=headers, json=data, timeout=20).json()
@@ -1635,7 +1635,7 @@ def _groq_generate(system_prompt, user_prompt, max_tokens=2500, temperature=0.5)
     ] if k]
     if not keys:
         raise ValueError("No GROQ_API_KEY configured")
-    MODELS = ["llama-3.1-8b-instant", "llama3-8b-8192", "gemma2-9b-it"]
+    MODELS = ["openai/gpt-oss-20b", "llama3-8b-8192", "gemma2-9b-it"]
     url = "https://api.groq.com/openai/v1/chat/completions"
     payload = {
         "messages":    [{"role": "system", "content": system_prompt},
@@ -1990,7 +1990,7 @@ def send_image_guest():
             res   = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                json={"model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                json={"model": "meta-llama/llama-4-maverick-17b-128e-instruct",
                       "messages": [{"role": "user", "content": content}], "max_tokens": 400},
                 timeout=30
             )
@@ -2170,7 +2170,7 @@ def send_image():
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
                 json={
-                    "model": "llama-3.1-8b-instant",
+                    "model": "openai/gpt-oss-20b",
                     "messages": [
                         {"role": "system", "content": (
                             "You are a classifier. The user has uploaded an image and written a caption. "
@@ -2210,7 +2210,7 @@ def send_image():
             res = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-                json={"model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                json={"model": "meta-llama/llama-4-maverick-17b-128e-instruct",
                       "messages": [{"role": "user", "content": content}], "max_tokens": 500},
                 timeout=30
             )
