@@ -34,7 +34,9 @@
   --blue-bg: #e8edf5;
   --mono: "IBM Plex Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
   --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --radius: 3px;
+  --radius: 10px;
+  --radius-sm: 7px;
+  --radius-lg: 14px;
 }
 [data-theme="dark"] {
   --bg: #111110;
@@ -83,6 +85,7 @@ a { color: inherit; }
   width: 100%;
   max-width: 340px;
   border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   background: var(--panel);
   padding: 32px 28px;
 }
@@ -265,23 +268,25 @@ button:focus-visible {
    ============================================================ */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border: 1px solid var(--line);
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
   margin-bottom: 20px;
 }
 .stat-card {
   padding: 16px 18px;
-  border-right: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: var(--panel);
 }
-.stat-card:last-child { border-right: none; }
 .stat-label { font-size: 10px; font-weight: 700; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
 .stat-value { font-family: var(--mono); font-size: 26px; font-weight: 600; letter-spacing: -0.01em; line-height: 1; }
 .stat-sub { font-size: 11px; color: var(--ink-faint); margin-top: 6px; }
 
 .card {
   border: 1px solid var(--line);
+  border-radius: var(--radius);
   background: var(--panel);
+  overflow: hidden;
 }
 .card-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -316,7 +321,7 @@ table { width: 100%; border-collapse: collapse; }
 /* status tags — flat fills, semantic color only */
 .tag {
   display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 600;
-  padding: 2px 7px; border-radius: var(--radius); text-transform: lowercase;
+  padding: 2px 8px; border-radius: 99px; text-transform: lowercase;
 }
 .tag-default { background: var(--bg); color: var(--ink-mid); border: 1px solid var(--line); }
 .tag-blue { background: var(--blue-bg); color: var(--blue); }
@@ -326,7 +331,7 @@ table { width: 100%; border-collapse: collapse; }
 /* ============================================================
    LIVE USERS
    ============================================================ */
-.live-list { border: 1px solid var(--line); background: var(--panel); }
+.live-list { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); overflow: hidden; }
 .live-item, .live-empty {
   display: flex; align-items: center; justify-content: space-between;
   padding: 11px 16px; border-bottom: 1px solid var(--line); font-size: 13px;
@@ -347,7 +352,7 @@ table { width: 100%; border-collapse: collapse; }
    PROFILE CARDS
    ============================================================ */
 .profile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-.profile-card { border: 1px solid var(--line); background: var(--panel); padding: 16px; }
+.profile-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 16px; }
 .pc-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
 .pc-avatar {
   width: 30px; height: 30px; border: 1px solid var(--line-strong); border-radius: var(--radius);
@@ -356,7 +361,7 @@ table { width: 100%; border-collapse: collapse; }
 }
 .pc-name { font-weight: 700; font-size: 13px; }
 .pc-meta { font-size: 11px; color: var(--ink-faint); margin-top: 1px; }
-.pc-stats { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); margin-bottom: 12px; }
+.pc-stats { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 12px; }
 .pcs-item { padding: 8px 10px; border-right: 1px solid var(--line); }
 .pcs-item:last-child { border-right: none; }
 .pcs-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 3px; }
@@ -373,7 +378,7 @@ table { width: 100%; border-collapse: collapse; }
    ============================================================ */
 .ban-form, .notify-form {
   display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
-  border: 1px solid var(--line); background: var(--panel); padding: 16px; margin-bottom: 16px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 16px; margin-bottom: 16px;
 }
 .notify-form { flex-direction: column; align-items: stretch; max-width: 460px; }
 .ban-form .field, .notify-form .field { margin-bottom: 0; flex: 1; min-width: 140px; }
@@ -388,7 +393,7 @@ table { width: 100%; border-collapse: collapse; }
 .modal-overlay.open { display: flex; }
 .modal {
   width: 100%; max-width: 420px; max-height: 84vh; overflow-y: auto;
-  background: var(--panel); border: 1px solid var(--line-strong);
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--radius-lg);
 }
 .modal-sm { max-width: 340px; }
 .modal-head {
@@ -433,8 +438,6 @@ table { width: 100%; border-collapse: collapse; }
   .sidebar { display: none; }
   .menu-btn { display: block; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
-  .stat-card:nth-child(2n) { border-right: none; }
-  .stat-card:nth-child(1), .stat-card:nth-child(2) { border-bottom: 1px solid var(--line); }
   .content { padding: 16px; padding-bottom: 76px; }
   .users-table thead { display: none; }
   .users-table tr {
@@ -550,6 +553,10 @@ table { width: 100%; border-collapse: collapse; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         Notifications
       </button>
+      <button class="nav-item" id="snav-apihealth" onclick="navTo('apihealth')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        API Health
+      </button>
     </nav>
 
     <div style="padding:6px 16px;">
@@ -596,6 +603,11 @@ table { width: 100%; border-collapse: collapse; }
             <div class="stat-label">Total Visits</div>
             <div class="stat-value">{{ total_visits }}</div>
             <div class="stat-sub">all time</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Today's Visits</div>
+            <div class="stat-value">{{ today_visits }}</div>
+            <div class="stat-sub">since midnight</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">Messages</div>
@@ -843,6 +855,62 @@ table { width: 100%; border-collapse: collapse; }
         </div>
       </div>
 
+      <!-- ── API HEALTH ── -->
+      <div id="sec-apihealth" class="section">
+        <div class="page-head">
+          <h2>API Health</h2>
+          <p>Usage and live status for every external API key Jarvis calls</p>
+        </div>
+
+        <button class="btn btn-primary btn-sm" onclick="runHealthCheck()" id="health-check-btn" style="margin-bottom:16px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Run Live Check
+        </button>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <span class="card-title">Providers — last 24h</span>
+            <span class="tag tag-default" id="health-checked-at">not checked yet</span>
+          </div>
+          <table class="users-table" id="api-providers-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Live Status</th>
+                <th>Calls (24h)</th>
+                <th>Errors (24h)</th>
+                <th>Avg Latency</th>
+                <th>Last Call</th>
+              </tr>
+            </thead>
+            <tbody id="api-providers-tbody">
+              <tr><td colspan="6" class="empty">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Recent Calls</span>
+          </div>
+          <table class="users-table" id="api-recent-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Key</th>
+                <th>Endpoint</th>
+                <th>Result</th>
+                <th>Latency</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="api-recent-tbody">
+              <tr><td colspan="6" class="empty">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /shell -->
@@ -929,6 +997,10 @@ table { width: 100%; border-collapse: collapse; }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       Notifications
     </button>
+    <button class="nav-item" id="dnav-apihealth" onclick="navTo('apihealth')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      API Health
+    </button>
     <div style="padding:8px 8px 4px;">
       <div class="theme-row" onclick="toggleTheme()">
         <span>Dark mode</span>
@@ -993,7 +1065,7 @@ function closeDrawer() {
 }
 
 // NAV - unified function used by sidebar, drawer, bottom nav
-const sectionNames = { overview:'Dashboard', live:'Live Users', users:'All Users', profiles:'User Profiles', bans:'Bans', notify:'Notifications' };
+const sectionNames = { overview:'Dashboard', live:'Live Users', users:'All Users', profiles:'User Profiles', bans:'Bans', notify:'Notifications', apihealth:'API Health' };
 
 function navTo(id) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -1011,6 +1083,7 @@ function navTo(id) {
   if (b) b.classList.add('active');
   closeDrawer();
   if (id === 'live') loadLiveUsers();
+  if (id === 'apihealth') loadApiLogs();
 }
 function nav(id, el) { navTo(id); }
 
@@ -1055,8 +1128,9 @@ async function refreshStats() {
     const cards = document.querySelectorAll('.stat-card .stat-value');
     if (cards[0] && d.total_users !== undefined) cards[0].textContent = d.total_users;
     if (cards[1] && d.total_visits !== undefined) cards[1].textContent = d.total_visits;
-    if (cards[2] && d.total_messages !== undefined) cards[2].textContent = d.total_messages;
-    if (cards[3] && d.total_bans !== undefined) cards[3].textContent = d.total_bans;
+    if (cards[2] && d.today_visits !== undefined) cards[2].textContent = d.today_visits;
+    if (cards[3] && d.total_messages !== undefined) cards[3].textContent = d.total_messages;
+    if (cards[4] && d.total_bans !== undefined) cards[4].textContent = d.total_bans;
     if (d.live_count !== undefined) document.getElementById('live-count').textContent = d.live_count;
   } catch {}
 }
@@ -1158,6 +1232,97 @@ async function sendNotification() {
 }
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── API HEALTH ──
+let _lastHealthResults = {};
+
+function fmtMs(ms) { return (ms === null || ms === undefined) ? '—' : (ms < 1000 ? `${ms}ms` : `${(ms/1000).toFixed(1)}s`); }
+function fmtWhen(ts) {
+  if (!ts) return 'never';
+  return ts;
+}
+
+async function loadApiLogs() {
+  const ptbody = document.getElementById('api-providers-tbody');
+  const rtbody = document.getElementById('api-recent-tbody');
+  try {
+    const d = await (await fetch(_adminBase+'/api_logs')).json();
+    renderProvidersTable(d.providers);
+    if (!d.recent.length) {
+      rtbody.innerHTML = '<tr><td colspan="6" class="empty">No API calls logged yet.</td></tr>';
+    } else {
+      rtbody.innerHTML = d.recent.map(r => `
+        <tr>
+          <td data-label="Provider" style="font-weight:700;">${esc(r.provider)}</td>
+          <td data-label="Key" class="mono" style="color:var(--ink-mid);font-size:12px;">${esc(r.key_label||'—')}</td>
+          <td data-label="Endpoint" class="mono" style="color:var(--ink-mid);font-size:12px;">${esc(r.endpoint||'—')}</td>
+          <td data-label="Result">${r.success ? '<span class="tag" style="background:var(--green-bg);color:var(--green);">ok</span>' : `<span class="tag tag-red" title="${esc(r.error_message||'')}">failed</span>`}</td>
+          <td data-label="Latency" class="mono">${fmtMs(r.response_ms)}</td>
+          <td data-label="Time" class="mono" style="font-size:12px;color:var(--ink-mid);">${esc(r.called_at)}</td>
+        </tr>`).join('');
+    }
+  } catch {
+    ptbody.innerHTML = '<tr><td colspan="6" class="empty" style="color:var(--red)">Failed to load.</td></tr>';
+    rtbody.innerHTML = '';
+  }
+}
+
+function renderProvidersTable(providers) {
+  const ptbody = document.getElementById('api-providers-tbody');
+  if (!providers || !providers.length) {
+    ptbody.innerHTML = '<tr><td colspan="6" class="empty">No providers configured.</td></tr>';
+    return;
+  }
+  ptbody.innerHTML = providers.map(p => {
+    const live = _lastHealthResults[p.id];
+    let statusHtml;
+    if (live) {
+      statusHtml = live.status === 'ok'
+        ? `<span class="tag" style="background:var(--green-bg);color:var(--green);">working — ${fmtMs(live.ms)}</span>`
+        : live.status === 'not_configured'
+          ? `<span class="tag tag-default">not configured</span>`
+          : `<span class="tag tag-red" title="${esc(live.detail||'')}">error</span>`;
+    } else if (!p.configured_keys) {
+      statusHtml = `<span class="tag tag-default">not configured</span>`;
+    } else if (p.last_success === true) {
+      statusHtml = `<span class="tag" style="background:var(--green-bg);color:var(--green);">last call ok</span>`;
+    } else if (p.last_success === false) {
+      statusHtml = `<span class="tag tag-amber">last call failed</span>`;
+    } else {
+      statusHtml = `<span class="tag tag-default">no data</span>`;
+    }
+    return `
+      <tr>
+        <td data-label="Provider" style="font-weight:700;">${esc(p.label)}</td>
+        <td data-label="Live Status">${statusHtml}</td>
+        <td data-label="Calls (24h)" class="mono">${p.calls_24h}</td>
+        <td data-label="Errors (24h)" class="mono" style="${p.failed_24h ? 'color:var(--red);' : ''}">${p.failed_24h}</td>
+        <td data-label="Avg Latency" class="mono">${fmtMs(p.avg_ms_24h)}</td>
+        <td data-label="Last Call" class="mono" style="font-size:12px;color:var(--ink-mid);">${fmtWhen(p.last_call_at)}</td>
+      </tr>`;
+  }).join('');
+}
+
+async function runHealthCheck() {
+  const btn = document.getElementById('health-check-btn');
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Checking...';
+  try {
+    const d = await (await fetch(_adminBase+'/api_health', {method:'POST'})).json();
+    _lastHealthResults = {};
+    d.results.forEach(r => { _lastHealthResults[r.id] = r; });
+    document.getElementById('health-checked-at').textContent = 'checked ' + d.checked_at;
+    await loadApiLogs();
+    const okCount = d.results.filter(r => r.status === 'ok').length;
+    toast(`✓ Checked ${d.results.length} providers — ${okCount} working`);
+  } catch {
+    toast('Health check failed');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
+}
 
 // init
 loadLiveUsers();

@@ -155,17 +155,28 @@ def _run_image_analysis(img_prompt, session_messages_copy, img_src, username, ch
             {"type": "text", "text": "Describe this image in detail — include colours, objects, background, lighting, and any text visible."},
             {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
         ]
-        res = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
-            json={
-                "model": "meta-llama/llama-4-maverick-17b-128e-instruct",
-                "messages": [{"role": "user", "content": content}],
-                "max_tokens": 400
-            },
-            timeout=35
-        )
-        description = res.json()["choices"][0]["message"]["content"].strip()
+        _t0 = time.time()
+        try:
+            res = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"},
+                json={
+                    "model": "meta-llama/llama-4-maverick-17b-128e-instruct",
+                    "messages": [{"role": "user", "content": content}],
+                    "max_tokens": 400
+                },
+                timeout=35
+            )
+            _ms = int((time.time() - _t0) * 1000)
+            rj = res.json()
+            if "choices" in rj:
+                log_api_call("groq", "GROQ_API_KEY(_2)", "image-analysis", True, res.status_code, _ms)
+            else:
+                log_api_call("groq", "GROQ_API_KEY(_2)", "image-analysis", False, res.status_code, _ms, str(rj.get("error", rj))[:500])
+            description = rj["choices"][0]["message"]["content"].strip()
+        except Exception as ex:
+            log_api_call("groq", "GROQ_API_KEY(_2)", "image-analysis", False, None, int((time.time()-_t0)*1000), str(ex))
+            raise
         if description:
             analysis_entry = {
                 "sender": "Jarvis",
@@ -331,9 +342,43 @@ def init_db():
         conn.commit()
     except Exception:
         conn.rollback()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS api_call_logs (
+            id            SERIAL PRIMARY KEY,
+            provider      TEXT,
+            key_label     TEXT,
+            endpoint      TEXT,
+            success       BOOLEAN,
+            status_code   INTEGER,
+            response_ms   INTEGER,
+            error_message TEXT,
+            called_at     TEXT
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_api_call_logs_provider_time ON api_call_logs(provider, called_at)")
     conn.commit()
     cur.close()
     return_db(conn)
+
+def log_api_call(provider, key_label, endpoint, success, status_code=None, response_ms=None, error_message=None):
+    """Record one outbound API call so the admin panel can show usage + health.
+    Never raises — logging must not break the caller's actual request."""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        now = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute(
+            """INSERT INTO api_call_logs
+               (provider, key_label, endpoint, success, status_code, response_ms, error_message, called_at)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (provider, key_label, endpoint, bool(success), status_code, response_ms,
+             (error_message[:500] if error_message else None), now)
+        )
+        conn.commit()
+        cur.close()
+        return_db(conn)
+    except Exception as e:
+        print(f"[api_log] failed to record call: {e}")
 
 def get_next_guest_label():
     conn = get_db()
@@ -844,6 +889,7 @@ def _try_huggingface(prompt):
         return None
     
     for idx, key in enumerate(hf_keys):
+        _t0 = time.time()
         try:
             resp = requests.post(
                 "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
@@ -851,14 +897,18 @@ def _try_huggingface(prompt):
                 json={"inputs": prompt},
                 timeout=60
             )
+            _ms = int((time.time() - _t0) * 1000)
             if resp.status_code == 200 and resp.content:
+                log_api_call("huggingface", f"HF_API_KEY_{idx+1}" if idx else "HF_API_KEY", "image-generation", True, resp.status_code, _ms)
                 b64 = _b64.b64encode(resp.content).decode("utf-8")
                 return _img_html(f"data:image/jpeg;base64,{b64}", prompt)
             elif resp.status_code != 200:
                 error_detail = resp.text[:100] if resp.text else f"HTTP {resp.status_code}"
+                log_api_call("huggingface", f"HF_API_KEY_{idx+1}" if idx else "HF_API_KEY", "image-generation", False, resp.status_code, _ms, error_detail)
                 print(f"[IMG][HF] key #{idx+1} returned {resp.status_code}: {error_detail}")
         except Exception as e:
             error_msg = str(e)[:150]
+            log_api_call("huggingface", f"HF_API_KEY_{idx+1}" if idx else "HF_API_KEY", "image-generation", False, None, int((time.time()-_t0)*1000), error_msg)
             print(f"[IMG][HF] key #{idx+1} exception: {error_msg}")
     return None
 
@@ -868,6 +918,7 @@ def _try_together(prompt):
     key = os.environ.get("TOGETHER_API_KEY", "")
     if not key:
         return None
+    _t0 = time.time()
     try:
         res = requests.post(
             "https://api.together.xyz/v1/images/generations",
@@ -876,8 +927,10 @@ def _try_together(prompt):
                   "width": 768, "height": 768, "steps": 4, "n": 1},
             timeout=60
         )
+        _ms = int((time.time() - _t0) * 1000)
         data = res.json()
         if res.status_code == 200 and data.get("data"):
+            log_api_call("together", "TOGETHER_API_KEY", "image-generation", True, res.status_code, _ms)
             item = data["data"][0]
             b64_raw = item.get("b64_json", "")
             url     = item.get("url", "")
@@ -888,7 +941,10 @@ def _try_together(prompt):
                 if img_resp.status_code == 200:
                     b64 = _b64.b64encode(img_resp.content).decode("utf-8")
                     return _img_html(f"data:image/jpeg;base64,{b64}", prompt)
+        else:
+            log_api_call("together", "TOGETHER_API_KEY", "image-generation", False, res.status_code, _ms, str(data)[:300])
     except Exception as e:
+        log_api_call("together", "TOGETHER_API_KEY", "image-generation", False, None, int((time.time()-_t0)*1000), str(e))
         print(f"[IMG][Together] exception: {e}")
     return None
 
@@ -897,6 +953,7 @@ def _try_stable_horde(prompt):
     import base64 as _b64
     import time as _time
     api_key = os.environ.get("HORDE_API_KEY", "0000000000")
+    _t0 = time.time()
     try:
         submit = requests.post(
             "https://stablehorde.net/api/v2/generate/async",
@@ -911,9 +968,11 @@ def _try_stable_horde(prompt):
             timeout=20
         )
         if submit.status_code != 202:
+            log_api_call("stablehorde", "HORDE_API_KEY", "image-generation", False, submit.status_code, int((time.time()-_t0)*1000), submit.text[:300])
             return None
         job_id = submit.json().get("id")
         if not job_id:
+            log_api_call("stablehorde", "HORDE_API_KEY", "image-generation", False, submit.status_code, int((time.time()-_t0)*1000), "no job id returned")
             return None
         for _ in range(18):
             _time.sleep(5)
@@ -922,22 +981,28 @@ def _try_stable_horde(prompt):
             if check.json().get("done"):
                 break
         else:
+            log_api_call("stablehorde", "HORDE_API_KEY", "image-generation", False, None, int((time.time()-_t0)*1000), "generation timed out")
             return None
         result      = requests.get(f"https://stablehorde.net/api/v2/generate/status/{job_id}",
                                    headers={"apikey": api_key}, timeout=15)
         generations = result.json().get("generations", [])
         if not generations:
+            log_api_call("stablehorde", "HORDE_API_KEY", "image-generation", False, result.status_code, int((time.time()-_t0)*1000), "no generations returned")
             return None
         img_url = generations[0].get("img", "")
         if not img_url:
+            log_api_call("stablehorde", "HORDE_API_KEY", "image-generation", False, result.status_code, int((time.time()-_t0)*1000), "no img url in generation")
             return None
         img_resp = requests.get(img_url, timeout=30)
         if img_resp.status_code == 200:
+            log_api_call("stablehorde", "HORDE_API_KEY", "image-generation", True, img_resp.status_code, int((time.time()-_t0)*1000))
             b64 = _b64.b64encode(img_resp.content).decode("utf-8")
             ct  = img_resp.headers.get("content-type", "image/webp")
             ext = "png" if "png" in ct else "jpeg" if "jpeg" in ct else "webp"
             return _img_html(f"data:image/{ext};base64,{b64}", prompt)
+        log_api_call("stablehorde", "HORDE_API_KEY", "image-generation", False, img_resp.status_code, int((time.time()-_t0)*1000), "final image fetch failed")
     except Exception as e:
+        log_api_call("stablehorde", "HORDE_API_KEY", "image-generation", False, None, int((time.time()-_t0)*1000), str(e))
         print(f"[IMG][Horde] exception: {e}")
     return None
 
@@ -1111,6 +1176,7 @@ def search_youtube(query):
     if not api_key:
         print("[YT] No YOUTUBE_API_KEY set — returning fallback link")
         return fallback
+    _t0 = time.time()
     try:
         resp = requests.get(
             "https://www.googleapis.com/youtube/v3/search",
@@ -1125,15 +1191,19 @@ def search_youtube(query):
             },
             timeout=10
         )
+        _ms = int((time.time() - _t0) * 1000)
         raw = resp.json()
         print(f"[YT] API status={resp.status_code} keys={list(raw.keys())}")
         if "error" in raw:
             print(f"[YT] API error: {raw['error']}")
+            log_api_call("youtube", "YOUTUBE_API_KEY", "search", False, resp.status_code, _ms, str(raw["error"])[:400])
             return fallback
         items = raw.get("items", [])
         if not items:
             print(f"[YT] No items returned for query: {query}")
+            log_api_call("youtube", "YOUTUBE_API_KEY", "search", False, resp.status_code, _ms, "no items returned")
             return fallback
+        log_api_call("youtube", "YOUTUBE_API_KEY", "search", True, resp.status_code, _ms)
         item    = items[0]
         vid_id  = item["id"]["videoId"]
         title   = item["snippet"]["title"].replace('"', '&quot;').replace("'", "&#39;")
@@ -1152,6 +1222,7 @@ def search_youtube(query):
             f'</div></div>'
         )
     except Exception as e:
+        log_api_call("youtube", "YOUTUBE_API_KEY", "search", False, None, int((time.time()-_t0)*1000), str(e))
         print(f"[YT] Exception: {e}")
         return fallback
 
@@ -1628,10 +1699,10 @@ def _extract_pdf_text(pdf_file, max_pages=20, max_chars=7000):
     return "\n".join(pages_text).strip()[:max_chars]
 
 def _groq_generate(system_prompt, user_prompt, max_tokens=2500, temperature=0.5):
-    keys = [k for k in [
-        os.environ.get("GROQ_API_KEY", ""),
-        os.environ.get("GROQ_API_KEY_2", ""),
-        os.environ.get("GROQ_API_KEY_3", ""),
+    keys = [(label, k) for label, k in [
+        ("GROQ_API_KEY", os.environ.get("GROQ_API_KEY", "")),
+        ("GROQ_API_KEY_2", os.environ.get("GROQ_API_KEY_2", "")),
+        ("GROQ_API_KEY_3", os.environ.get("GROQ_API_KEY_3", "")),
     ] if k]
     if not keys:
         raise ValueError("No GROQ_API_KEY configured")
@@ -1644,21 +1715,27 @@ def _groq_generate(system_prompt, user_prompt, max_tokens=2500, temperature=0.5)
         "temperature": temperature,
     }
     last_err = "Unknown error"
-    for key in keys:
+    for key_label, key in keys:
         headers = {"Authorization": "Bearer " + key, "Content-Type": "application/json"}
         for model in MODELS:
             payload["model"] = model
+            _t0 = time.time()
             try:
                 r  = requests.post(url, headers=headers, json=payload, timeout=90)
+                _ms = int((time.time() - _t0) * 1000)
                 rj = r.json()
                 if "choices" in rj:
+                    log_api_call("groq", key_label, model, True, r.status_code, _ms)
                     return rj["choices"][0]["message"]["content"].strip()
                 err = rj.get("error", {})
                 last_err = err.get("message", str(rj))
+                log_api_call("groq", key_label, model, False, r.status_code, _ms, last_err)
                 if "rate_limit" in last_err or "per day" in last_err or "tokens" in last_err.lower():
                     break
             except Exception as ex:
+                _ms = int((time.time() - _t0) * 1000)
                 last_err = str(ex)
+                log_api_call("groq", key_label, model, False, None, _ms, last_err)
     raise ValueError(last_err)
 
 def _parse_groq_json(raw):
@@ -2833,6 +2910,9 @@ def admin():
     visits = cur.fetchall()
     cur.execute("SELECT COUNT(*) FROM visits")
     total_visits = cur.fetchone()["count"]
+    today_str = datetime.now(IST).strftime("%Y-%m-%d")
+    cur.execute("SELECT COUNT(*) FROM visits WHERE date = %s", (today_str,))
+    today_visits = cur.fetchone()["count"]
     cur.execute("SELECT username, profile_json, last_updated FROM user_profiles")
     raw_profiles = cur.fetchall()
     cur.execute("SELECT username, COUNT(*) as cnt FROM chat_sessions GROUP BY username")
@@ -2856,6 +2936,7 @@ def admin():
                            total_messages=total_messages,
                            visits=visits,
                            total_visits=total_visits,
+                           today_visits=today_visits,
                            bans=bans,
                            logged_in=True,
                            **_admin_urls())
@@ -2876,6 +2957,9 @@ def admin_stats():
     total_users = cur.fetchone()["count"]
     cur.execute("SELECT COUNT(*) FROM visits")
     total_visits = cur.fetchone()["count"]
+    today_str = datetime.now(IST).strftime("%Y-%m-%d")
+    cur.execute("SELECT COUNT(*) FROM visits WHERE date = %s", (today_str,))
+    today_visits = cur.fetchone()["count"]
     cur.execute("SELECT SUM((profile_json::json->>'total_messages')::int) FROM user_profiles")
     row = cur.fetchone()
     total_messages = row["sum"] if row and row["sum"] else 0
@@ -2886,6 +2970,7 @@ def admin_stats():
     return jsonify({
         "total_users": total_users,
         "total_visits": total_visits,
+        "today_visits": today_visits,
         "total_messages": total_messages,
         "total_bans": len(bans),
         "live_count": len(live),
@@ -3024,6 +3109,187 @@ def admin_bans():
         return err
     bans = get_all_bans()
     return jsonify({"bans": [dict(b) for b in bans]}), 200
+
+# ── API KEY USAGE + HEALTH ──────────────────────────────────────────────
+# Providers Jarvis calls out to. Each entry knows how to run a cheap,
+# real request against that provider so admin can check it's still working.
+def _api_key_registry():
+    return {
+        "groq": {
+            "label": "Groq (chat + vision)",
+            "keys": [k for k in [
+                ("GROQ_API_KEY", os.environ.get("GROQ_API_KEY", "")),
+                ("GROQ_API_KEY_2", os.environ.get("GROQ_API_KEY_2", "")),
+                ("GROQ_API_KEY_3", os.environ.get("GROQ_API_KEY_3", "")),
+            ] if k[1]],
+        },
+        "huggingface": {
+            "label": "HuggingFace (image generation)",
+            "keys": [k for k in [
+                ("HF_API_KEY", os.environ.get("HF_API_KEY", "")),
+                ("HF_API_KEY_2", os.environ.get("HF_API_KEY_2", "")),
+                ("HF_API_KEY_3", os.environ.get("HF_API_KEY_3", "")),
+                ("HF_API_KEY_4", os.environ.get("HF_API_KEY_4", "")),
+            ] if k[1]],
+        },
+        "together": {
+            "label": "Together AI (image generation)",
+            "keys": [k for k in [("TOGETHER_API_KEY", os.environ.get("TOGETHER_API_KEY", ""))] if k[1]],
+        },
+        "stablehorde": {
+            "label": "Stable Horde (image generation)",
+            "keys": [("HORDE_API_KEY", os.environ.get("HORDE_API_KEY", "0000000000"))],
+        },
+        "youtube": {
+            "label": "YouTube Data API (video search)",
+            "keys": [k for k in [("YOUTUBE_API_KEY", os.environ.get("YOUTUBE_API_KEY", ""))] if k[1]],
+        },
+        "siliconflow": {
+            "label": "SiliconFlow",
+            "keys": [k for k in [("SILICONFLOW_API_KEY", SILICONFLOW_API_KEY)] if k[1]],
+        },
+        "nvidia": {
+            "label": "NVIDIA NIM",
+            "keys": [k for k in [("NVIDIA_API_KEY_2", os.environ.get("NVIDIA_API_KEY_2", ""))] if k[1]],
+        },
+    }
+
+@app.route(ADMIN_BASE + "/api_logs")
+def admin_api_logs():
+    """Usage summary per provider (last 24h + last 7d) plus the most recent
+    raw log rows, so admin can see call volume, error rate, and latency."""
+    err = _admin_check()
+    if err:
+        return err
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    now = datetime.now(IST)
+    since_24h = (now - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+    since_7d  = (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+
+    cur.execute("""
+        SELECT provider,
+               COUNT(*) FILTER (WHERE called_at >= %s)                    AS calls_24h,
+               COUNT(*) FILTER (WHERE called_at >= %s AND success)        AS success_24h,
+               COUNT(*) FILTER (WHERE called_at >= %s AND NOT success)    AS failed_24h,
+               COUNT(*) FILTER (WHERE called_at >= %s)                    AS calls_7d,
+               AVG(response_ms) FILTER (WHERE called_at >= %s)            AS avg_ms_24h,
+               MAX(called_at)                                             AS last_call_at,
+               (ARRAY_AGG(success ORDER BY called_at DESC))[1]            AS last_success
+        FROM api_call_logs
+        WHERE called_at >= %s
+        GROUP BY provider
+        ORDER BY provider
+    """, (since_24h, since_24h, since_24h, since_7d, since_24h, since_7d))
+    summary = cur.fetchall()
+
+    cur.execute("""
+        SELECT provider, key_label, endpoint, success, status_code, response_ms, error_message, called_at
+        FROM api_call_logs
+        ORDER BY called_at DESC
+        LIMIT 100
+    """)
+    recent = cur.fetchall()
+    cur.close()
+    return_db(conn)
+
+    registry = _api_key_registry()
+    summary_map = {r["provider"]: dict(r) for r in summary}
+    providers = []
+    for pid, info in registry.items():
+        s = summary_map.get(pid, {})
+        providers.append({
+            "id": pid,
+            "label": info["label"],
+            "configured_keys": len(info["keys"]),
+            "calls_24h": s.get("calls_24h", 0) or 0,
+            "success_24h": s.get("success_24h", 0) or 0,
+            "failed_24h": s.get("failed_24h", 0) or 0,
+            "calls_7d": s.get("calls_7d", 0) or 0,
+            "avg_ms_24h": int(s["avg_ms_24h"]) if s.get("avg_ms_24h") else None,
+            "last_call_at": s.get("last_call_at"),
+            "last_success": s.get("last_success"),
+        })
+
+    return jsonify({
+        "providers": providers,
+        "recent": [dict(r) for r in recent],
+    }), 200
+
+@app.route(ADMIN_BASE + "/api_health", methods=["POST"])
+def admin_api_health():
+    """Fire one cheap real request per configured provider right now and
+    report whether it succeeded. This is a live check, not a log read."""
+    err = _admin_check()
+    if err:
+        return err
+    registry = _api_key_registry()
+    results = []
+
+    def _check(pid, info):
+        if not info["keys"]:
+            return {"id": pid, "label": info["label"], "status": "not_configured", "detail": "No API key set", "ms": None}
+        key_label, key = info["keys"][0]
+        t0 = time.time()
+        try:
+            if pid == "groq":
+                r = requests.post("https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                    json={"model": "openai/gpt-oss-20b", "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+                    timeout=15)
+                ok = r.status_code == 200 and "choices" in r.json()
+                detail = "OK" if ok else str(r.json().get("error", {}).get("message", r.text[:150]))
+            elif pid == "huggingface":
+                r = requests.get("https://huggingface.co/api/whoami-v2", headers={"Authorization": f"Bearer {key}"}, timeout=15)
+                ok = r.status_code == 200
+                detail = "OK" if ok else f"HTTP {r.status_code}: {r.text[:150]}"
+            elif pid == "together":
+                r = requests.get("https://api.together.xyz/v1/models", headers={"Authorization": f"Bearer {key}"}, timeout=15)
+                ok = r.status_code == 200
+                detail = "OK" if ok else f"HTTP {r.status_code}: {r.text[:150]}"
+            elif pid == "stablehorde":
+                r = requests.get("https://stablehorde.net/api/v2/status/heartbeat", timeout=15)
+                ok = r.status_code == 200
+                detail = "OK" if ok else f"HTTP {r.status_code}"
+            elif pid == "youtube":
+                r = requests.get("https://www.googleapis.com/youtube/v3/search",
+                    params={"part": "snippet", "q": "test", "type": "video", "maxResults": 1, "key": key}, timeout=15)
+                ok = r.status_code == 200 and "error" not in r.json()
+                detail = "OK" if ok else str(r.json().get("error", {}).get("message", r.text[:150]))
+            elif pid == "siliconflow":
+                r = requests.get("https://api.siliconflow.cn/v1/models", headers={"Authorization": f"Bearer {key}"}, timeout=15)
+                ok = r.status_code == 200
+                detail = "OK" if ok else f"HTTP {r.status_code}: {r.text[:150]}"
+            elif pid == "nvidia":
+                r = requests.get("https://integrate.api.nvidia.com/v1/models", headers={"Authorization": f"Bearer {key}"}, timeout=15)
+                ok = r.status_code == 200
+                detail = "OK" if ok else f"HTTP {r.status_code}: {r.text[:150]}"
+            else:
+                return {"id": pid, "label": info["label"], "status": "unknown", "detail": "No health check defined", "ms": None}
+            ms = int((time.time() - t0) * 1000)
+            log_api_call(pid, key_label, "health-check", ok, getattr(r, "status_code", None), ms, None if ok else detail)
+            return {"id": pid, "label": info["label"], "status": "ok" if ok else "error", "detail": detail, "ms": ms}
+        except Exception as e:
+            ms = int((time.time() - t0) * 1000)
+            log_api_call(pid, key_label, "health-check", False, None, ms, str(e))
+            return {"id": pid, "label": info["label"], "status": "error", "detail": str(e)[:200], "ms": ms}
+
+    threads = []
+    results_lock = threading.Lock()
+    def _run(pid, info):
+        r = _check(pid, info)
+        with results_lock:
+            results.append(r)
+    for pid, info in registry.items():
+        th = threading.Thread(target=_run, args=(pid, info), daemon=True)
+        th.start()
+        threads.append(th)
+    for th in threads:
+        th.join(timeout=20)
+
+    order = {pid: i for i, pid in enumerate(registry.keys())}
+    results.sort(key=lambda r: order.get(r["id"], 99))
+    return jsonify({"results": results, "checked_at": datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")}), 200
 
 @app.route("/sf_generate", methods=["POST"])
 def sf_generate():
