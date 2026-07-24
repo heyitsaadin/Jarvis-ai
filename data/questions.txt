@@ -8,3 +8,4 @@
 whats_jarvis | What is Jarvis?
 who_made_jarvis | Who made Jarvis?
 jarvis_purpose | What is the purpose of Jarvis?
+who_is_Aadins_crush | who is Aadins crush?
