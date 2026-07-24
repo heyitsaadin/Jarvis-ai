@@ -1,0 +1,10 @@
+# ~/ secret-access questions list
+# Format: id | question text
+# - One entry per line. Lines starting with # are ignored.
+# - "id" must exactly match the id used on the corresponding line in properties.txt
+# - "question text" is the canonical phrasing; matching is fuzzy (keyword-based),
+#   so the user doesn't have to type it exactly, but it should still be a close
+#   enough match in wording/keywords to count as this question.
+whats_jarvis | What is Jarvis?
+who_made_jarvis | Who made Jarvis?
+jarvis_purpose | What is the purpose of Jarvis?

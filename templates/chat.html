@@ -2133,6 +2133,49 @@
         return bar;
     }
 
+    // ── Self-destructing bubble (used by ~/ ephemeral lookups) ──
+    // Wraps an already-built bubble row: adds a live red countdown at the
+    // bottom of the bubble and removes the row from the DOM when it hits 0.
+    function attachSelfDestruct(row, seconds) {
+        const bar = document.createElement('div');
+        bar.className = 'self-destruct-bar';
+        bar.style.cssText = 'margin-top:6px;font-size:11px;font-weight:600;color:#ef4444;letter-spacing:.02em;display:flex;align-items:center;gap:5px;';
+        bar.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block;animation:jarvis-pulse-dot 1s infinite;"></span><span class="self-destruct-count">Self-destructs in ' + seconds + 's</span>';
+        row.appendChild(bar);
+
+        let remaining = seconds;
+        const countEl = bar.querySelector('.self-destruct-count');
+        const interval = setInterval(() => {
+            remaining -= 1;
+            if (remaining <= 0) {
+                clearInterval(interval);
+                row.classList.add('self-destruct-out');
+                row.style.transition = 'opacity .35s ease, max-height .35s ease, margin .35s ease, padding .35s ease';
+                row.style.opacity = '0';
+                row.style.maxHeight = row.scrollHeight + 'px';
+                requestAnimationFrame(() => {
+                    row.style.maxHeight = '0px';
+                    row.style.marginTop = '0';
+                    row.style.marginBottom = '0';
+                    row.style.paddingTop = '0';
+                    row.style.paddingBottom = '0';
+                    row.style.overflow = 'hidden';
+                });
+                setTimeout(() => row.remove(), 400);
+                return;
+            }
+            countEl.textContent = 'Self-destructs in ' + remaining + 's';
+        }, 1000);
+    }
+
+    // Inject the pulse keyframe once
+    if (!document.getElementById('jarvis-pulse-style')) {
+        const styleTag = document.createElement('style');
+        styleTag.id = 'jarvis-pulse-style';
+        styleTag.textContent = '@keyframes jarvis-pulse-dot{0%,100%{opacity:1;}50%{opacity:.3;}}';
+        document.head.appendChild(styleTag);
+    }
+
     function makeBubble(msg, animate, container) {
         const row = document.createElement('div');
         row.className = 'message-row ' + (msg.sender === 'You' ? 'user' : 'ai');
@@ -2425,6 +2468,59 @@
         if (window._imgSendPending && window._imgSendPending()) { window._sendImageFn(); return; }
         const msg = chatInput.value.trim();
         if (!msg) return;
+
+        // ── ~/ command: one-time ephemeral properties lookup ──
+        // This message + its reply are never stored server-side (no session
+        // history, no DB, no long-term memory) and self-destruct client-side.
+        if (msg.startsWith('~/')) {
+            const userRow = makeBubble({ sender: 'You', text: msg }, false, stream);
+            userRow.classList.add('msg-enter');
+            stream.appendChild(userRow);
+            chatInput.value = ''; chatInput.style.height = '38px';
+            inputDock.classList.remove('has-content');
+            submitBtn.disabled = true;
+            JarvisSound.send();
+            if (document.body.classList.contains('jarvis-welcome')) hideWelcome(true);
+
+            stream.appendChild(typingEl);
+            typingEl.style.display = 'block'; startTypingPhase(typingEl);
+            stream.scrollTop = stream.scrollHeight;
+
+            fetch('/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            })
+            .then(r => r.json())
+            .then(data => {
+                typingEl.style.display = 'none'; stopTypingPhase(typingEl);
+                submitBtn.disabled = false;
+                const seconds = data.ephemeral_seconds || 10;
+                if (data.reply) {
+                    const replyRow = makeBubble({ sender: 'Jarvis', text: data.reply }, false, stream);
+                    replyRow.classList.add('msg-enter');
+                    stream.appendChild(replyRow);
+                    stream.appendChild(typingEl);
+                    stream.scrollTop = stream.scrollHeight;
+                    JarvisSound.reply();
+                    // Both the question and the answer self-destruct together.
+                    attachSelfDestruct(userRow, seconds);
+                    attachSelfDestruct(replyRow, seconds);
+                }
+            })
+            .catch(() => {
+                typingEl.style.display = 'none'; stopTypingPhase(typingEl);
+                submitBtn.disabled = false;
+                JarvisSound.error();
+                const errRow = makeBubble({ sender: 'Jarvis', text: 'Something went wrong. Try again.' }, false, stream);
+                stream.appendChild(errRow);
+                stream.appendChild(typingEl);
+                stream.scrollTop = stream.scrollHeight;
+                attachSelfDestruct(userRow, 10);
+                attachSelfDestruct(errRow, 10);
+            });
+            return;
+        }
 
         // ── /create command: SiliconFlow image generation ──
         if (msg.toLowerCase().startsWith('/create ')) {

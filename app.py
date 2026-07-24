@@ -1512,6 +1512,137 @@ SECURITY RULES:
                 return "I'm having a moment — try again! 😅"
     return "I'm having a moment — try again! 😅"
 
+########################################################################
+# ── ~/ ephemeral properties-lookup command ──────────────────────────
+#
+# Design notes (read before touching):
+#   - "~/ <question>" is a one-shot, self-destructing Q&A lookup.
+#   - The ONLY source of truth for answers is data/properties.txt.
+#   - The ONLY source of truth for which questions are answerable is
+#     data/questions.txt.
+#   - Matching is fuzzy/keyword-based: the user's question doesn't need
+#     to match a questions.txt entry word-for-word, just closely enough
+#     in wording/keywords.
+#   - A ~/ turn (user message + AI reply) must NEVER:
+#       * be appended to session["messages"]
+#       * be passed to update_profile() / save_history() / any DB write
+#       * be visible to ask_jarvis_brain() or any other long-term memory
+#   - The frontend is responsible for self-destructing (removing) both
+#     bubbles from the DOM 10 seconds after the reply is shown, with a
+#     red countdown. The backend just marks the reply so the frontend
+#     knows to treat it that way (see "ephemeral": true in /send).
+########################################################################
+
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+QUESTIONS_FILE = os.path.join(DATA_DIR, "questions.txt")
+PROPERTIES_FILE = os.path.join(DATA_DIR, "properties.txt")
+
+_STOPWORDS = {
+    "a", "an", "the", "is", "are", "was", "were", "what", "whats", "who",
+    "whos", "of", "for", "to", "do", "does", "did", "in", "on", "at",
+    "and", "or", "your", "you", "me", "my", "please", "tell", "about",
+    "with", "it", "its", "this", "that", "there", "so", "up"
+}
+
+
+def _tokenize_for_match(text):
+    """Lowercase, strip punctuation, drop stopwords -> set of keyword tokens."""
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    words = text.split()
+    return {w for w in words if w and w not in _STOPWORDS}
+
+
+def _load_pipe_delimited(path):
+    """Load a `id | text` file into an ordered list of (id, text) tuples.
+    Lines that are blank or start with # are ignored."""
+    entries = []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "|" not in line:
+                    continue
+                key, _, val = line.partition("|")
+                key = key.strip()
+                val = val.strip()
+                if key and val:
+                    entries.append((key, val))
+    except FileNotFoundError:
+        return []
+    return entries
+
+
+def _match_predefined_question(user_question):
+    """Fuzzy/keyword match user_question against data/questions.txt.
+    Returns the matched entry's id, or None if nothing matches well enough."""
+    questions = _load_pipe_delimited(QUESTIONS_FILE)
+    if not questions:
+        return None
+
+    user_tokens = _tokenize_for_match(user_question)
+    if not user_tokens:
+        return None
+
+    best_id = None
+    best_score = 0.0
+    for qid, qtext in questions:
+        q_tokens = _tokenize_for_match(qtext)
+        if not q_tokens:
+            continue
+        overlap = user_tokens & q_tokens
+        if not overlap:
+            continue
+        # Jaccard similarity (overlap / union) — unlike overlap-over-shorter-set,
+        # this correctly penalizes a short canonical question (e.g. just
+        # {"jarvis"}) from beating a longer, more specific match (e.g.
+        # {"made", "jarvis"}) purely because it has fewer tokens to satisfy.
+        union = user_tokens | q_tokens
+        score = len(overlap) / len(union)
+        if score > best_score:
+            best_score = score
+            best_id = qid
+
+    # Require a reasonably strong overlap to avoid loose false-positive
+    # matches (e.g. a single shared filler-ish word matching everything).
+    if best_score >= 0.34:
+        return best_id
+    return None
+
+
+def _lookup_property_answer(entry_id):
+    """The ONLY function allowed to read data/properties.txt."""
+    properties = _load_pipe_delimited(PROPERTIES_FILE)
+    for pid, ptext in properties:
+        if pid == entry_id:
+            return ptext
+    return None
+
+
+def _handle_tilde_command(raw_msg):
+    """Handle a '~/ <question>' message.
+
+    Returns a reply string. This function and everything it calls must
+    stay self-contained: no session["messages"] writes, no DB writes,
+    no calls into update_profile/save_history/ask_jarvis_brain.
+    """
+    question = raw_msg[2:].strip() if raw_msg.startswith("~/") else raw_msg.strip()
+    if not question:
+        return "Usage: ~/ <question>"
+
+    matched_id = _match_predefined_question(question)
+    if not matched_id:
+        return "I don't have a stored answer for that question."
+
+    answer = _lookup_property_answer(matched_id)
+    if not answer:
+        return "I don't have a stored answer for that question."
+
+    return answer
+
+
 def _build_reply(user_msg):
     reply = ""
     if session.get("awaiting_owner_code"):
@@ -2147,6 +2278,20 @@ def send():
     user_msg = data.get("message", "").strip()
     if not user_msg:
         return _json_mod.dumps({"error": "empty"}), 400, {"Content-Type": "application/json"}
+
+    # ── ~/ ephemeral properties lookup ──
+    # This branch is fully isolated from every persistence path:
+    # no session["messages"] append, no update_profile, no DB save,
+    # no ask_jarvis_brain. The reply is marked "ephemeral" so the
+    # frontend self-destructs both bubbles ~10s after showing them.
+    if user_msg.startswith("~/"):
+        tilde_reply = _handle_tilde_command(user_msg)
+        return _json_mod.dumps({
+            "reply": tilde_reply,
+            "ephemeral": True,
+            "ephemeral_seconds": 10
+        }), 200, {"Content-Type": "application/json"}
+
     session["messages"].append({"sender": "You", "text": user_msg})
     if len(session["messages"]) > 30:
         session["messages"] = session["messages"][-30:]
