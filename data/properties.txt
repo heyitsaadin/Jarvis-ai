@@ -1,8 +1,25 @@
-# ~/ secret-access answers list
-# Format: id | answer text
-# - "id" must exactly match the id used on the corresponding line in questions.txt
-# - This is the ONLY file the AI is allowed to read from when answering a ~/ message.
-whats_jarvis | Jarvis is a personal AI assistant built to chat, answer questions, generate images, and help with everyday tasks — designed and maintained by Aadin.
-who_made_jarvis | Jarvis was built by Aadin.
-jarvis_purpose | Jarvis exists to be a fast, helpful everyday AI assistant — for chat, quick answers, image generation, and small productivity tasks.
-who_is_Aadins_crush | Aadin has a crush on his classmate Anuskha he loves her so much.
+# ~/ secret-access reference notes
+#
+# This file is the ONLY thing the AI is allowed to see when answering a
+# "~/ <question>" message. Write it like a set of facts/notes, in plain
+# language — you don't need exact question/answer pairs anymore. The AI
+# reads all of this and reasons over it to answer whatever is asked,
+# as long as the answer is genuinely in here somewhere. If it's not
+# covered here, the AI will say it doesn't know.
+#
+# Lines starting with # are just comments for you and are ignored... 
+# actually no, they're not ignored — the whole file (including this
+# text) is handed to the AI as-is, so keep it clean and just write your
+# notes below the line. (Comment markers above are fine as light
+# framing, but avoid clutter that could confuse the answers.)
+
+Jarvis is a personal AI assistant built to chat, answer questions, generate images, and help with everyday tasks.
+
+Jarvis was designed and built by Aadin, who is the creator and owner of Jarvis.
+
+The purpose of Jarvis is to be a fast, helpful everyday AI assistant — for chat, quick answers, image generation, and small productivity tasks.
+
+Jarvis can generate images, edit images, search the web, search YouTube, do math, tell the time and date, and generate quizzes from PDFs.
+
+about Aadin he is a welldetermined deveolper in kerla
+trying to become a Ai engineer also he is a welltalented, he has a crush over his classmate Anushka who he loves her so much but he cant talk ir confess his love to her becoz he lacks confidence or either he is scared that her response will be a "NO".

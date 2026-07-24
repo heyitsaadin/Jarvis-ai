@@ -1932,7 +1932,7 @@
                 <input type="file" id="imgInput2" accept="image/*" style="display:none">
                 <textarea id="chatInput" placeholder="" rows="1" autocomplete="off"></textarea>
                 <button class="submit-btn" id="submitBtn" type="button" title="Send">
-                    <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>
                 </button>
             </div>
         </div>
@@ -2134,45 +2134,118 @@
     }
 
     // ── Self-destructing bubble (used by ~/ ephemeral lookups) ──
-    // Wraps an already-built bubble row: adds a live red countdown at the
-    // bottom of the bubble and removes the row from the DOM when it hits 0.
+    // Wraps an already-built bubble row: adds a live red countdown ring at
+    // the bottom of the bubble and removes the row from the DOM when it
+    // hits 0, using a Telegram-style "delete message" animation — the
+    // bubble scales down and fades while the row collapses shut around it.
     function attachSelfDestruct(row, seconds) {
         const bar = document.createElement('div');
         bar.className = 'self-destruct-bar';
-        bar.style.cssText = 'margin-top:6px;font-size:11px;font-weight:600;color:#ef4444;letter-spacing:.02em;display:flex;align-items:center;gap:5px;';
-        bar.innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block;animation:jarvis-pulse-dot 1s infinite;"></span><span class="self-destruct-count">Self-destructs in ' + seconds + 's</span>';
+        bar.innerHTML =
+            '<svg class="sd-ring" viewBox="0 0 20 20" width="14" height="14">' +
+                '<circle class="sd-ring-track" cx="10" cy="10" r="8" fill="none" stroke-width="2"/>' +
+                '<circle class="sd-ring-progress" cx="10" cy="10" r="8" fill="none" stroke-width="2"/>' +
+            '</svg>' +
+            '<span class="self-destruct-count">Self-destructs in ' + seconds + 's</span>';
         row.appendChild(bar);
+        row.classList.add('sd-armed');
 
-        let remaining = seconds;
+        const RADIUS = 8;
+        const CIRCUM = 2 * Math.PI * RADIUS;
+        const ringEl = bar.querySelector('.sd-ring-progress');
+        ringEl.style.strokeDasharray = CIRCUM.toFixed(2);
+        ringEl.style.strokeDashoffset = '0';
+
         const countEl = bar.querySelector('.self-destruct-count');
-        const interval = setInterval(() => {
-            remaining -= 1;
-            if (remaining <= 0) {
-                clearInterval(interval);
-                row.classList.add('self-destruct-out');
-                row.style.transition = 'opacity .35s ease, max-height .35s ease, margin .35s ease, padding .35s ease';
-                row.style.opacity = '0';
-                row.style.maxHeight = row.scrollHeight + 'px';
-                requestAnimationFrame(() => {
-                    row.style.maxHeight = '0px';
-                    row.style.marginTop = '0';
-                    row.style.marginBottom = '0';
-                    row.style.paddingTop = '0';
-                    row.style.paddingBottom = '0';
-                    row.style.overflow = 'hidden';
-                });
-                setTimeout(() => row.remove(), 400);
+        const totalMs = seconds * 1000;
+        const startedAt = performance.now();
+
+        function tick(now) {
+            const elapsed = now - startedAt;
+            const remainingMs = Math.max(0, totalMs - elapsed);
+            const remainingSec = Math.ceil(remainingMs / 1000);
+            countEl.textContent = remainingMs <= 0
+                ? 'Deleting…'
+                : 'Self-destructs in ' + remainingSec + 's';
+            const progress = Math.min(1, elapsed / totalMs);
+            ringEl.style.strokeDashoffset = (CIRCUM * progress).toFixed(2);
+
+            if (elapsed >= totalMs) {
+                detonate();
                 return;
             }
-            countEl.textContent = 'Self-destructs in ' + remaining + 's';
-        }, 1000);
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+
+        function detonate() {
+            if (row.classList.contains('sd-detonating')) return;
+            row.classList.add('sd-detonating');
+
+            // Lock in the current height so the collapse has something to
+            // animate from, then let two transitions run together:
+            // 1) the bubble content itself scales+fades out (Telegram poof)
+            // 2) the row's height/margin collapses shut around the gap
+            const startHeight = row.scrollHeight;
+            row.style.height = startHeight + 'px';
+            row.style.overflow = 'hidden';
+
+            requestAnimationFrame(() => {
+                row.style.height = '0px';
+                row.style.marginBottom = '0px';
+            });
+
+            setTimeout(() => row.remove(), 380);
+        }
     }
 
-    // Inject the pulse keyframe once
-    if (!document.getElementById('jarvis-pulse-style')) {
+    // Inject self-destruct styles once
+    if (!document.getElementById('jarvis-selfdestruct-style')) {
         const styleTag = document.createElement('style');
-        styleTag.id = 'jarvis-pulse-style';
-        styleTag.textContent = '@keyframes jarvis-pulse-dot{0%,100%{opacity:1;}50%{opacity:.3;}}';
+        styleTag.id = 'jarvis-selfdestruct-style';
+        styleTag.textContent = `
+            .self-destruct-bar {
+                margin-top: 6px;
+                font-size: 11px;
+                font-weight: 600;
+                color: #ef4444;
+                letter-spacing: .02em;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .sd-ring { transform: rotate(-90deg); flex-shrink: 0; }
+            .sd-ring-track { stroke: rgba(239,68,68,.22); }
+            .sd-ring-progress {
+                stroke: #ef4444;
+                stroke-linecap: round;
+                transition: stroke-dashoffset .12s linear;
+            }
+            .msg-row.sd-armed,
+            .message-row.sd-armed {
+                transition: height .38s cubic-bezier(.55,0,.1,1),
+                            margin-bottom .38s cubic-bezier(.55,0,.1,1);
+            }
+            .message-row.sd-detonating {
+                pointer-events: none;
+            }
+            .message-row.sd-detonating .message-text,
+            .message-row.sd-detonating .meta-label {
+                animation: jarvis-poof .38s cubic-bezier(.55,0,.1,1) forwards;
+            }
+            .message-row.sd-detonating .self-destruct-bar {
+                animation: jarvis-poof-fast .2s ease forwards;
+            }
+            @keyframes jarvis-poof {
+                0%   { opacity: 1; transform: scale(1); filter: blur(0px); }
+                60%  { opacity: .4; transform: scale(.92); filter: blur(1px); }
+                100% { opacity: 0; transform: scale(.82); filter: blur(2px); }
+            }
+            @keyframes jarvis-poof-fast {
+                0%   { opacity: 1; }
+                100% { opacity: 0; }
+            }
+        `;
         document.head.appendChild(styleTag);
     }
 
