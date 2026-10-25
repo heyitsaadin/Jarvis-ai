@@ -867,14 +867,16 @@ def website_send_stream(project_id):
 
     # Model comes from the UI picker now. "@groq " prefix kept as a manual
     # override for backwards compatibility.
-    model_choice = data.get("model", DEFAULT_MODEL)
-    if model_choice not in MODEL_CONFIGS:
-        model_choice = DEFAULT_MODEL
+    model_choice = data.get("model") or _default_model_id()
+    if _resolve_model(model_choice) is None:
+        model_choice = _default_model_id()
     if raw_msg.lower().startswith("@groq "):
         model_choice = "groq"
         raw_msg = raw_msg[6:].strip()
 
-    think_enabled = bool(data.get("think", False)) and MODEL_CONFIGS[model_choice]["supports_think"]
+    think_enabled = bool(data.get("think", False)) and bool(
+        (_resolve_model(model_choice) or {}).get("supports_think")
+    )
 
     user_msg = raw_msg
     messages = _get_chat(project_id, username)
