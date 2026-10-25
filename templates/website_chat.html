@@ -944,6 +944,7 @@ function closeModelMenu() {
 function selectModel(key) {
   if (!MODEL_INFO[key]) return;
   selectedModel = key;
+  try { localStorage.setItem('website-model', key); } catch (e) {}
   document.getElementById('model-label').textContent = MODEL_INFO[key].label;
   document.querySelectorAll('.model-option').forEach(opt => {
     opt.classList.toggle('selected', opt.dataset.model === key);
