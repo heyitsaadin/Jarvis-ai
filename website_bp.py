@@ -916,7 +916,9 @@ def website_send_stream(project_id):
 
     def _start_stream(choice, think):
         """Create a streaming completion for the given model choice."""
-        cfg = MODEL_CONFIGS[choice]
+        cfg = _resolve_model(choice)
+        if not cfg:
+            raise RuntimeError("No model available. Check NVIDIA_CODING_API_KEY and the model list.")
         api_key = os.environ.get(cfg["api_key_env"], "")
         if not api_key:
             raise RuntimeError(f"{cfg['api_key_env']} not set")
