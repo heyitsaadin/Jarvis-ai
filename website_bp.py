@@ -539,7 +539,7 @@ MODEL_CONFIGS = {
         "label": "DeepSeek V4 Flash",
         "model": "deepseek-ai/deepseek-v4-flash",
         "client_fn": _nvidia_client,
-        "api_key_env": "NVIDIA_API_KEY",
+        "api_key_env": "NVIDIA_CODING_API_KEY",
         "max_tokens": 16384,
         "temperature": 1,
         "top_p": 0.95,
