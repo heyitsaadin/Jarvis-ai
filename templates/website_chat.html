@@ -1305,6 +1305,7 @@ function _liveFinalize(files) {
 async function sendMessage() {
   const msg = input.value.trim();
   if (!msg || isSending) return;
+  if (!selectedModel) { showToast('No model selected yet'); return; }
 
   _setSendBtnSending(true);
   input.value = '';
