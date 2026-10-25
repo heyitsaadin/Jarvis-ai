@@ -807,19 +807,13 @@ def website_send(project_id):
     messages.append({"sender": "You", "text": user_msg})
 
     # Model selection — frontend sends { model: "nvidia"|"groq"|"nemotron"|"kimi" }
-    selected_model = data.get("model", DEFAULT_MODEL)
+    selected_model = data.get("model") or _default_model_id()
+    if use_groq:
+        selected_model = "groq"
+    elif _resolve_model(selected_model) is None:
+        selected_model = _default_model_id()
 
-    # Route to the correct direct-call function based on selected model
-    if use_groq or selected_model == "groq":
-        call_fn = _call_groq
-    elif selected_model == "nemotron":
-        call_fn = _call_nemotron
-    elif selected_model == "kimi":
-        call_fn = _call_kimi_direct
-    else:
-        call_fn = _call_kimi  # default: DeepSeek via nvidia
-
-    result, error = call_fn(messages, current_files)
+    result, error = _call_model(selected_model, messages, current_files)
 
     if result:
         ai_message = result.get("message", "Done! Here's what I built.")
