@@ -59,7 +59,7 @@ def _nvidia3_client():
 def _nvidia4_client():
     return OpenAI(
         base_url="https://integrate.api.nvidia.com/v1",
-        api_key=os.environ.get("NVIDIA_API_4", ""),
+        api_key=os.environ.get("NVIDIA_CODING_API_KEY", ""),
     )
 
 # ─── DB init ─────────────────────────────────────────────────────────────────
