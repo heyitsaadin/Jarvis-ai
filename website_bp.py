@@ -50,7 +50,7 @@ def _groq_client():
 def _nvidia3_client():
     return OpenAI(
         base_url="https://integrate.api.nvidia.com/v1",
-        api_key=os.environ.get("NVIDIA_API_3", ""),
+        api_key=os.environ.get("NVIDIA_CODING_API_KEY", ""),
     )
 
 
