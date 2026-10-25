@@ -1343,7 +1343,7 @@ async function sendMessage() {
 
   try {
     // Nemotron and Kimi use the direct /send endpoint (no SSE) to avoid Railway timeout
-    const useDirectEndpoint = (selectedModel === 'nemotron' || selectedModel === 'kimi');
+    const useDirectEndpoint = /nemotron|kimi/i.test(selectedModel);
     const endpoint = useDirectEndpoint
       ? '/project/website/' + PROJECT_ID + '/send'
       : '/project/website/' + PROJECT_ID + '/send-stream';
