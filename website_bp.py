@@ -559,7 +559,7 @@ MODEL_CONFIGS = {
         "label": "Nemotron 3 Ultra",
         "model": "nvidia/nemotron-3-ultra-550b-a55b",
         "client_fn": _nvidia3_client,
-        "api_key_env": "NVIDIA_API_3",
+        "api_key_env": "NVIDIA_CODING_API_KEY",
         "max_tokens": 32768,
         "temperature": 0.6,
         "top_p": 0.95,
