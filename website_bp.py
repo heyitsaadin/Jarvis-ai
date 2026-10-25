@@ -569,7 +569,7 @@ MODEL_CONFIGS = {
         "label": "Kimi K2.6",
         "model": "moonshotai/kimi-k2.6",
         "client_fn": _nvidia4_client,
-        "api_key_env": "NVIDIA_API_4",
+        "api_key_env": "NVIDIA_CODING_API_KEY",
         "max_tokens": 16384,
         "temperature": 0.7,
         "top_p": 0.95,
