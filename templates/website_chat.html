@@ -736,15 +736,7 @@ pre[class*="language-"],code[class*="language-"]{background:transparent!importan
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div id="model-menu" class="model-menu">
-            <button class="model-option selected" data-model="nvidia" onclick="selectModel('nvidia')">
-              <span class="model-name">DeepSeek V4 Flash</span><span class="model-sub">Default · NVIDIA</span>
-            </button>
-            <button class="model-option" data-model="groq" onclick="selectModel('groq')">
-              <span class="model-name">Llama 3.3 70B</span><span class="model-sub">Fast · Groq</span>
-            </button>
-            <button class="model-option" data-model="nemotron" onclick="selectModel('nemotron')">
-              <span class="model-name">Nemotron 3 Ultra</span><span class="model-sub">Supports Think mode</span>
-            </button>
+            <div class="model-empty">Loading models…</div>
           </div>
         </div>
         <button id="send-btn" type="button" onclick="onSendBtnClick()" disabled>
