@@ -440,9 +440,9 @@ def _call_nemotron(messages, current_files):
     Direct (non-streaming) call to Nemotron 3 Ultra via NVIDIA NIM.
     Returns (parsed_dict, error_str).
     """
-    api_key = os.environ.get("NVIDIA_API_3", "")
+    api_key = os.environ.get("NVIDIA_CODING_API_KEY", "")
     if not api_key:
-        return None, "NVIDIA_API_3 not set in environment."
+        return None, "NVIDIA_CODING_API_KEY not set in environment."
 
     files_context = ""
     if current_files:
