@@ -32,7 +32,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 def _nvidia_client():
     return OpenAI(
         base_url="https://integrate.api.nvidia.com/v1",
-        api_key=os.environ.get("NVIDIA_API_KEY", ""),
+        api_key=os.environ.get("NVIDIA_CODING_API_KEY", ""),
     )
 
 
