@@ -577,7 +577,176 @@ MODEL_CONFIGS = {
         "supports_think": False,
     },
 }
-DEFAULT_MODEL = "nvidia"
+DEFAULT_MODEL = "nvidia"  # legacy key only; the live default comes from _default_model_id()
+
+
+# ─── Live model list (NVIDIA /v1/models) ─────────────────────────────────────
+# The picker no longer ships a hardcoded list. The frontend calls
+# GET /project/website/models, which reads NVIDIA's live catalogue using
+# NVIDIA_CODING_API_KEY (cached 10 min). Any "org/name" id from that list can
+# be used. "groq" stays as a separate, non-NVIDIA entry if GROQ_API_KEY is set.
+
+_MODEL_ID_RE = re.compile(r"^[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+$")
+_MODELS_TTL = 600       # seconds to cache a good list
+_MODELS_ERR_TTL = 60    # seconds before retrying after a failed fetch
+_MODELS_CACHE = {"ts": 0.0, "models": [], "err": None}
+
+# NVIDIA's catalogue also contains embeddings, rerankers, guard/safety models,
+# speech, image and bio models. Hide those from a *coding chat* picker.
+_NON_CHAT_HINTS = (
+    "embed", "rerank", "reward", "guard", "safety", "retriev", "nvclip",
+    "parse", "diffusion", "sdxl", "flux", "cosmos", "whisper", "parakeet",
+    "canary", "riva", "gliner", "translate", "neva", "fuyu", "kosmos",
+    "paligemma", "vista", "maxine", "genmol", "diffdock", "alphafold",
+    "molmim", "proteinmpnn", "rfdiffusion", "evo2", "boltz",
+)
+_NON_CHAT_TOKENS = {"tts", "asr", "bge", "clip", "ocr", "pii", "esm2"}
+# Preference order for the auto-selected default (first match wins).
+_PREFERRED_DEFAULTS = ("qwen3-coder", "deepseek-v4", "kimi-k2", "glm", "nemotron-3", "deepseek")
+
+
+def _is_chat_model(mid):
+    low = mid.lower()
+    if any(h in low for h in _NON_CHAT_HINTS):
+        return False
+    return not (set(re.split(r"[^a-z0-9]+", low)) & _NON_CHAT_TOKENS)
+
+
+def _model_entry(mid):
+    org, _, name = mid.partition("/")
+    return {
+        "id": mid,
+        "label": name or mid,
+        "sub": org if name else "NVIDIA",
+        "supports_think": "nemotron-3" in mid.lower(),
+    }
+
+
+def _list_chat_models(force=False):
+    """Returns (nvidia_models, error_or_None). Cached; keeps the last good list on failure."""
+    c = _MODELS_CACHE
+    now = time.time()
+    ttl = _MODELS_ERR_TTL if c["err"] else _MODELS_TTL
+    if not force and c["ts"] and (now - c["ts"]) < ttl:
+        return c["models"], c["err"]
+
+    err = None
+    models = None
+    if not os.environ.get("NVIDIA_CODING_API_KEY", ""):
+        err = "NVIDIA_CODING_API_KEY not set in environment."
+    else:
+        try:
+            page = _nvidia_client().with_options(timeout=8.0).models.list()
+            ids = sorted({m.id for m in page if getattr(m, "id", None)})
+            models = [_model_entry(i) for i in ids if _is_chat_model(i)]
+        except Exception as e:
+            err = f"Couldn't load NVIDIA model list: {e}"
+
+    c["ts"] = now
+    c["err"] = err
+    if models is not None:
+        c["models"] = models
+    return c["models"], err
+
+
+def _all_models(force=False):
+    models, err = _list_chat_models(force)
+    models = list(models)
+    if os.environ.get("GROQ_API_KEY"):
+        models.append({"id": "groq", "label": "Llama 3.3 70B", "sub": "Groq", "supports_think": False})
+    return models, err
+
+
+def _default_model_id():
+    models, _ = _list_chat_models()
+    for hint in _PREFERRED_DEFAULTS:
+        for m in models:
+            if hint in m["id"].lower():
+                return m["id"]
+    if models:
+        return models[0]["id"]
+    return "groq" if os.environ.get("GROQ_API_KEY") else ""
+
+
+def _resolve_model(choice):
+    """Turn a model id from the picker into an API config, or None if invalid."""
+    if not choice:
+        return None
+    if choice == "groq":
+        return MODEL_CONFIGS["groq"]
+    if not _MODEL_ID_RE.match(choice):
+        return None
+    models, _ = _list_chat_models()
+    live_ids = {m["id"] for m in models}
+    if live_ids and choice not in live_ids:
+        return None
+    is_nemo = "nemotron" in choice.lower()
+    return {
+        "label": choice,
+        "model": choice,
+        "client_fn": _nvidia_client,
+        "api_key_env": "NVIDIA_CODING_API_KEY",
+        "max_tokens": 32768 if is_nemo else 16384,
+        "temperature": 0.6 if is_nemo else 0.7,
+        "top_p": 0.95,
+        "supports_think": "nemotron-3" in choice.lower(),
+    }
+
+
+def _call_model(choice, messages, current_files):
+    """Direct (non-streaming) call to any resolved model. Returns (parsed_dict, error_str)."""
+    cfg = _resolve_model(choice)
+    if not cfg:
+        return None, "That model isn't available. Pick another from the list."
+    api_key = os.environ.get(cfg["api_key_env"], "")
+    if not api_key:
+        return None, f"{cfg['api_key_env']} not set in environment."
+
+    files_context = ""
+    if current_files:
+        files_context = "\n\nCURRENT FILES IN PROJECT:\n"
+        for f in current_files:
+            files_context += f"\n--- {f['filename']} ---\n{f['content']}\n"
+
+    api_messages = []
+    for i, m in enumerate(messages):
+        role = "user" if m["sender"] == "You" else "assistant"
+        content = m["text"]
+        if i == len(messages) - 1 and role == "user" and files_context:
+            content = content + files_context
+        api_messages.append({"role": role, "content": content})
+
+    try:
+        client = cfg["client_fn"]()
+        response = client.chat.completions.create(
+            model=cfg["model"],
+            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + api_messages,
+            max_tokens=cfg["max_tokens"],
+            temperature=cfg["temperature"],
+            top_p=cfg["top_p"],
+            stream=False,
+        )
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1] if "\n" in raw else raw
+            raw = raw.rsplit("```", 1)[0].strip()
+        if raw.startswith("json"):
+            raw = raw[4:].strip()
+        return json.loads(raw), None
+    except json.JSONDecodeError as e:
+        return None, f"AI returned invalid JSON: {str(e)}"
+    except Exception as e:
+        return None, str(e)
+
+
+@website_bp.route("/project/website/models")
+def website_models():
+    """Live model list for the picker (coding agent only)."""
+    if "user" not in session:
+        return jsonify({"error": "not_logged_in"}), 401
+    force = request.args.get("refresh") == "1"
+    models, err = _all_models(force)
+    return jsonify({"models": models, "default": _default_model_id(), "error": err}), 200
 
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
