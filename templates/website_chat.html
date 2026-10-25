@@ -838,12 +838,91 @@ let currentFiles = {{ files | tojson }};
 let isSending = false;
 
 // ── Model picker + Think mode ────────────────────────────────
-const MODEL_INFO = {
-  nvidia:   { label: 'DeepSeek',  supportsThink: false },
-  groq:     { label: 'Groq',      supportsThink: false },
-  nemotron: { label: 'Nemotron',  supportsThink: true  },
-};
-let selectedModel = 'nvidia';
+// The model list is NOT hardcoded: it is fetched live from the server, which
+// reads NVIDIA's /v1/models catalogue (see GET /project/website/models).
+let MODEL_INFO = {};
+let selectedModel = null;
+
+function renderModelMenu(models) {
+  const menu = document.getElementById('model-menu');
+  menu.innerHTML = '';
+
+  const search = document.createElement('input');
+  search.type = 'search';
+  search.className = 'model-search';
+  search.placeholder = 'Search ' + models.length + ' models…';
+  search.addEventListener('input', () => {
+    const q = search.value.trim().toLowerCase();
+    menu.querySelectorAll('.model-option').forEach(o => {
+      o.style.display = o.dataset.search.includes(q) ? '' : 'none';
+    });
+  });
+  menu.appendChild(search);
+
+  models.forEach(m => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'model-option';
+    b.dataset.model = m.id;
+    b.dataset.search = (m.id + ' ' + m.label + ' ' + (m.sub || '')).toLowerCase();
+    const n = document.createElement('span');
+    n.className = 'model-name';
+    n.textContent = m.label;
+    const s = document.createElement('span');
+    s.className = 'model-sub';
+    s.textContent = (m.sub || '') + (m.supports_think ? ' · Think mode' : '');
+    b.append(n, s);
+    b.addEventListener('click', () => selectModel(m.id));
+    menu.appendChild(b);
+  });
+
+  const r = document.createElement('button');
+  r.type = 'button';
+  r.className = 'model-refresh';
+  r.textContent = '↻ Refresh list';
+  r.addEventListener('click', (e) => { e.stopPropagation(); loadModels(true); });
+  menu.appendChild(r);
+}
+
+async function loadModels(force) {
+  const menu = document.getElementById('model-menu');
+  const label = document.getElementById('model-label');
+  if (force) label.textContent = 'Loading…';
+  try {
+    const res = await fetch('/project/website/models' + (force ? '?refresh=1' : ''));
+    const data = await res.json();
+    const models = data.models || [];
+    if (!models.length) throw new Error(data.error || 'No models returned');
+
+    MODEL_INFO = {};
+    models.forEach(m => { MODEL_INFO[m.id] = { label: m.label, supportsThink: !!m.supports_think }; });
+    renderModelMenu(models);
+
+    let saved = null;
+    try { saved = localStorage.getItem('website-model'); } catch (e) {}
+    const keep = (selectedModel && MODEL_INFO[selectedModel]) ? selectedModel : null;
+    const pick = keep
+      || (saved && MODEL_INFO[saved] ? saved : null)
+      || (data.default && MODEL_INFO[data.default] ? data.default : models[0].id);
+    selectModel(pick);
+    if (data.error) showToast('Showing last known models');
+  } catch (e) {
+    selectedModel = null;
+    label.textContent = 'No models';
+    menu.innerHTML = '';
+    const msg = document.createElement('div');
+    msg.className = 'model-empty';
+    msg.textContent = 'Couldn\'t load models. Check NVIDIA_CODING_API_KEY on the server.';
+    menu.appendChild(msg);
+    const r = document.createElement('button');
+    r.type = 'button';
+    r.className = 'model-refresh';
+    r.textContent = '↻ Try again';
+    r.addEventListener('click', (ev) => { ev.stopPropagation(); loadModels(true); });
+    menu.appendChild(r);
+  }
+}
+loadModels(false);
 let thinkEnabled = false;
 let currentAbortController = null;
 
